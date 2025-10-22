@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <svg width="200" height="200" style="border:1px solid black" id="mysvg">
+        <defs id="defs">
+          <LinearGradient id="grad1">
+            <stop offset = "0%" stop-color="red" />
+            <stop offset = "100%" stop-color="blue" />
+          </LinearGradient>
+        </defs>
+
+        <circle class="circleName" id = "circle1"cx = "40" cy = "40" r="15" fill="red" stroke="black" stroke-width="2" stroke-dasharray="8 4"></circle>
+        <ellipse cx = "150" cy=" 60" rx="30" ry="20" fill="green" stroke="black" stroke-width="2"></ellipse>
+        <rect x="100" y="100" width="50" height="50" fill="url(#grad1)"></rect>
+    </svg>
+    <br/>
+    <div id="grandparent">
+        <div id="parent">
+            <div id="child">
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js">
+    </script>
+</body>
+</html>
