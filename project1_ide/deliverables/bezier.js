@@ -150,17 +150,6 @@ class BezierCurve {
         }
     }
 
-    
-    startAnimation() {
-        this.isAnimating = true;
-        this.animationParameter = 0.0;
-        this.animationDirection = 1;
-    }
-
-    stopAnimation() {
-        this.isAnimating = false;
-    }
-
     toggleAnimation() {
         this.isAnimating = !this.isAnimating;
         return this.isAnimating;
@@ -245,16 +234,6 @@ class BezierCurve {
             }
         }
         return -1;
-    }
-
-    // Get curve properties for display
-    getCurveProperties() {
-        return {
-            controlPoints: this.controlPoints.map(p => ({x: p.x.toFixed(2), y: p.y.toFixed(2), z: p.z.toFixed(2)})),
-            animationParameter: this.animationParameter.toFixed(3),
-            isAnimating: this.isAnimating,
-            currentPosition: this.getAnimatedPosition()
-        };
     }
 }
 

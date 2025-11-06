@@ -89,12 +89,6 @@ class Camera {
     }
 
     
-    panCameraTarget(deltaX, deltaY) {
-        this.targetPosition[0] += deltaX;
-        this.targetPosition[1] += deltaY;
-    }
-
-    
     getPosition() {
         return [this.eyePosition[0], this.eyePosition[1], this.eyePosition[2]];
     }
@@ -114,11 +108,6 @@ class Camera {
     toggleProjectionType() {
         this.isUsingPerspectiveProjection = !this.isUsingPerspectiveProjection;
         return this.isUsingPerspectiveProjection ? 'perspective' : 'orthographic';
-    }
-
-    
-    setProjectionType(projectionType) {
-        this.isUsingPerspectiveProjection = (projectionType === 'perspective');
     }
 
     
@@ -223,12 +212,12 @@ function createCameraFrustumGeometry(fieldOfViewInDegrees, aspectRatio, nearPlan
         frustumColors.push(...color, ...color, ...color);
     }
     
-    // Colors for different faces
-    const nearColor = [1.0, 1.0, 0.0];    // Yellow - near plane
-    const farColor = [0.0, 0.8, 1.0];     // Light blue - far plane  
-    const sideColor = [0.8, 0.4, 1.0];    // Purple - side faces
-    const topColor = [1.0, 0.6, 0.2];     // Orange - top face
-    const bottomColor = [0.2, 1.0, 0.6];  // Green - bottom face
+    
+    const nearColor = [1.0, 1.0, 0.0];    
+    const farColor = [0.0, 0.8, 1.0];      
+    const sideColor = [0.8, 0.4, 1.0];    
+    const topColor = [1.0, 0.6, 0.2];    
+    const bottomColor = [0.2, 1.0, 0.6];  
     
     // Near plane (2 triangles)  yellow
     addTriangle(nearCorners[0], nearCorners[1], nearCorners[2], [1.0, 1.0, 0.0]);

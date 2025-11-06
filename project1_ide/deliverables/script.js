@@ -1,6 +1,9 @@
 // Main application script for CS405 Project 1
 // Coordinates all modules and handles UI events
 
+// Constants
+const IDENTITY_MATRIX = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+
 // Global application state
 let applicationState = {
     renderer: null,
@@ -136,7 +139,7 @@ function renderScene() {
     // Get matrices
     const viewMatrix = applicationState.camera.getViewMatrix();
     const projectionMatrix = applicationState.camera.getProjectionMatrix();
-    const identityMatrix = createIdentityMatrix();
+    const identityMatrix = IDENTITY_MATRIX;
     
     // Draw main cube with transformations
     const modelMatrix = createTransformationMatrix(
@@ -209,12 +212,11 @@ function drawCoordinateAxes(viewMatrix, projectionMatrix) {
         applicationState.renderer.createBuffer('axesColors', axesGeometry.colors);
     }
     
-    applicationState.renderer.setLineWidth(3);
     applicationState.renderer.drawLineSegments(
         applicationState.renderer.buffers.axesPositions,
         applicationState.renderer.buffers.axesColors,
         axesGeometry.vertexCount,
-        createIdentityMatrix(),
+        IDENTITY_MATRIX,
         viewMatrix,
         projectionMatrix
     );
@@ -229,12 +231,11 @@ function drawGrid(viewMatrix, projectionMatrix) {
         applicationState.renderer.createBuffer('gridColors', gridGeometry.colors);
     }
     
-    applicationState.renderer.setLineWidth(1);
     applicationState.renderer.drawLineSegments(
         applicationState.renderer.buffers.gridPositions,
         applicationState.renderer.buffers.gridColors,
         gridGeometry.vertexCount,
-        createIdentityMatrix(),
+        IDENTITY_MATRIX,
         viewMatrix,
         projectionMatrix
     );
@@ -252,12 +253,11 @@ function drawBezierCurve(viewMatrix, projectionMatrix) {
         applicationState.renderer.createBuffer('curveColors', curveData.colors);
     }
     
-    applicationState.renderer.setLineWidth(3);
     applicationState.renderer.drawLines(
         applicationState.renderer.buffers.curvePositions,
         applicationState.renderer.buffers.curveColors,
         curveData.vertices.length / 3,
-        createIdentityMatrix(),
+        IDENTITY_MATRIX,
         viewMatrix,
         projectionMatrix
     );
@@ -270,15 +270,14 @@ function drawBezierCurve(viewMatrix, projectionMatrix) {
     
     if (!applicationState.renderer.buffers.polygonPositions) {
         applicationState.renderer.createBuffer('polygonPositions', polygonData.vertices);
-        applicationState.renderer.createBuffer('polygonColors', polygonData.colors);
+        applicationState.renderer.updateBuffer('polygonColors', polygonData.colors);
     }
     
-    applicationState.renderer.setLineWidth(1);
     applicationState.renderer.drawLineSegments(
         applicationState.renderer.buffers.polygonPositions,
         applicationState.renderer.buffers.polygonColors,
         polygonData.vertices.length / 3,
-        createIdentityMatrix(),
+        IDENTITY_MATRIX,
         viewMatrix,
         projectionMatrix
     );
@@ -300,7 +299,7 @@ function drawControlPoints(viewMatrix, projectionMatrix) {
         applicationState.renderer.buffers.controlPositions,
         applicationState.renderer.buffers.controlColors,
         pointsData.vertices.length / 3,
-        createIdentityMatrix(),
+        IDENTITY_MATRIX,
         viewMatrix,
         projectionMatrix
     );
@@ -342,7 +341,7 @@ function drawFrustumWireframe(cameraWorldMatrix, viewMatrix, projectionMatrix) {
         // Lines from camera to corners
         for (let i = 0; i < 4; i++) {
             wireframeLines.push(...origin, ...nearCorners[i]);
-            wireframeColors.push(1.0, 1.0, 0.0, 1.0, 1.0, 0.0); // Yellow
+            wireframeColors.push(0.0, 1.0, 1.0, 0.0, 1.0, 1.0); // Cyan
             
             wireframeLines.push(...origin, ...farCorners[i]);
             wireframeColors.push(0.0, 1.0, 1.0, 0.0, 1.0, 1.0); // Cyan
@@ -352,14 +351,14 @@ function drawFrustumWireframe(cameraWorldMatrix, viewMatrix, projectionMatrix) {
         for (let i = 0; i < 4; i++) {
             const next = (i + 1) % 4;
             wireframeLines.push(...nearCorners[i], ...nearCorners[next]);
-            wireframeColors.push(1.0, 0.5, 0.0, 1.0, 0.5, 0.0); // Orange
+            wireframeColors.push(0.0, 1.0, 1.0, 0.0, 1.0, 1.0); // Cyan
         }
         
         // Far plane rectangle  
         for (let i = 0; i < 4; i++) {
             const next = (i + 1) % 4;
             wireframeLines.push(...farCorners[i], ...farCorners[next]);
-            wireframeColors.push(1.0, 0.0, 1.0, 1.0, 0.0, 1.0); // Magenta
+            wireframeColors.push(0.0, 1.0, 1.0, 0.0, 1.0, 1.0); // Cyan
         }
         
         // Store wireframe data
@@ -375,7 +374,6 @@ function drawFrustumWireframe(cameraWorldMatrix, viewMatrix, projectionMatrix) {
     }
     
     // Draw wireframe
-    applicationState.renderer.setLineWidth(2);
     applicationState.renderer.drawLineSegments(
         applicationState.renderer.buffers.frustumWireframePositions,
         applicationState.renderer.buffers.frustumWireframeColors,
@@ -388,17 +386,10 @@ function drawFrustumWireframe(cameraWorldMatrix, viewMatrix, projectionMatrix) {
 
 // Draw camera frustum to visualize field of view
 function drawCameraFrustum(viewMatrix, projectionMatrix) {
-    // Only draw if frustum buffers exist
-    if (!applicationState.renderer.buffers.frustumPositions) {
-        return;
-    }
-    
     // Create inverse view matrix to transform frustum from camera space to world space
     const cameraWorldMatrix = invertMatrix(viewMatrix);
     
-    const gl = applicationState.renderer.webglContext;
-    
-    // First draw the camera indicator (solid, no transparency)
+    // Draw the camera indicator (solid, no transparency)
     if (applicationState.renderer.buffers.cameraPositions) {
         applicationState.renderer.drawTriangles(
             applicationState.renderer.buffers.cameraPositions,
@@ -411,17 +402,8 @@ function drawCameraFrustum(viewMatrix, projectionMatrix) {
         );
     }
     
-    // Draw frustum as wireframe instead of solid 
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.depthMask(false); 
-    
-    // Draw only the edges for clearer visualization
+    // Draw only the wireframe frustum (no solid surfaces)
     drawFrustumWireframe(cameraWorldMatrix, viewMatrix, projectionMatrix);
-    
-    // Restore normal rendering state
-    gl.depthMask(true);
-    gl.disable(gl.BLEND);
 }
 
 // UI Event Handlers
@@ -489,14 +471,7 @@ function updateCamera() {
     
     // Update frustum geometry if it's currently visible
     if (applicationState.showFrustum) {
-        const camera = applicationState.camera;
-        applicationState.renderer.setupFrustumGeometry(
-            camera.fieldOfView,
-            camera.aspectRatio,
-            camera.nearPlane,
-            camera.farPlane
-        );
-        // Clear wireframe cache to regenerate
+        // Clear wireframe cache to regenerate with new parameters
         applicationState.renderer.frustumWireframe = null;
     }
 }
@@ -509,13 +484,8 @@ function updateNearPlane() {
     
     // Update frustum geometry if it's currently visible
     if (applicationState.showFrustum) {
-        const camera = applicationState.camera;
-        applicationState.renderer.setupFrustumGeometry(
-            camera.fieldOfView,
-            camera.aspectRatio,
-            camera.nearPlane,
-            camera.farPlane
-        );
+        // Clear wireframe cache to regenerate with new near plane
+        applicationState.renderer.frustumWireframe = null;
     }
 }
 
@@ -526,13 +496,8 @@ function updateFarPlane() {
     
     // Update frustum geometry if it's currently visible
     if (applicationState.showFrustum) {
-        const camera = applicationState.camera;
-        applicationState.renderer.setupFrustumGeometry(
-            camera.fieldOfView,
-            camera.aspectRatio,
-            camera.nearPlane,
-            camera.farPlane
-        );
+        // Clear wireframe cache to regenerate with new far plane
+        applicationState.renderer.frustumWireframe = null;
     }
 }
 
@@ -575,15 +540,9 @@ function toggleFrustum() {
     applicationState.showFrustum = !applicationState.showFrustum;
     document.getElementById('frustumBtn').textContent = applicationState.showFrustum ? 'Hide Frustum' : 'Show Frustum';
     
-    // Update frustum geometry when toggled on
+    // Clear wireframe cache when toggling frustum
     if (applicationState.showFrustum) {
-        const camera = applicationState.camera;
-        applicationState.renderer.setupFrustumGeometry(
-            camera.fieldOfView,
-            camera.aspectRatio,
-            camera.nearPlane,
-            camera.farPlane
-        );
+        applicationState.renderer.frustumWireframe = null;
     }
 }
 

@@ -1,16 +1,6 @@
 // These codes taken from lab2/affine.js and webgl_transformations.html and modified
 // Matrix operations for CS405 Project 1 - WebGL uses column-major ordering
 
-// Create identity matrix
-function createIdentityMatrix() {
-    return [
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1
-    ];
-}
-
 // Create translation matrix
 function createTranslationMatrix(translateX, translateY, translateZ) {
     return [
