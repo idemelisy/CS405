@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Curves Tutorial</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            border-radius: 10px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            color: #667eea;
+            margin: 30px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        h3 {
+            color: #764ba2;
+            margin: 20px 0 10px 0;
+        }
+        
+        .section {
+            background: white;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .canvas-container {
+            background: #fafafa;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        canvas {
+            display: block;
+            border: 1px solid #ccc;
+            background: white;
+            cursor: crosshair;
+            border-radius: 5px;
+        }
+        
+        .controls {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        input[type="range"] {
+            width: 200px;
+            margin: 0 10px;
+        }
+        
+        label {
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        
+        .math-display {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            border: 1px solid #333;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        .slider-value {
+            min-width: 50px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Interactive Curves in Computer Graphics</h1>
+        <p>Bézier Curves, B-Splines, and NURBS</p>
+    </header>
+
+    <div class="container">
+        <!-- Introduction -->
+        <div class="section">
+            <h2>1. Introduction to Parametric Curves</h2>
+            <p>Parametric curves are fundamental to computer graphics and CAD systems. Unlike implicit curves (e.g., \(x^2 + y^2 = 1\)), parametric curves express coordinates as functions of a parameter:</p>
+            
+            <div class="math-display">
+                \[\mathbf{P}(t) = \begin{pmatrix} x(t) \\ y(t) \end{pmatrix}, \quad t \in [0,1]\]
+            </div>
+            
+            <div class="info-box">
+                <strong>Why Parametric?</strong> Parametric representations are:
+                <ul>
+                    <li>Independent of coordinate system</li>
+                    <li>Easy to evaluate at any point</li>
+                    <li>Natural for animation (t represents time)</li>
+                    <li>Suitable for complex curves that fail the vertical line test</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Continuity -->
+        <div class="section">
+            <h2>2. Curve Continuity: Parametric vs Geometric</h2>
+            
+            <h3>Parametric Continuity (C<sup>k</sup>)</h3>
+            <p>A curve has C<sup>k</sup> continuity if all derivatives up to order k are continuous.</p>
+            
+            <div class="math-display">
+                <p><strong>C<sup>0</sup>:</strong> Position continuity: \(\mathbf{P}_1(1) = \mathbf{P}_2(0)\)</p>
+                <p><strong>C<sup>1</sup>:</strong> Tangent continuity: \(\mathbf{P}'_1(1) = \mathbf{P}'_2(0)\)</p>
+                <p><strong>C<sup>2</sup>:</strong> Curvature continuity: \(\mathbf{P}''_1(1) = \mathbf{P}''_2(0)\)</p>
+            </div>
+
+            <h3>Geometric Continuity (G<sup>k</sup>)</h3>
+            <p>G<sup>k</sup> continuity is less strict—it only requires derivatives to have the same <em>direction</em>, not magnitude.</p>
+            
+            <div class="math-display">
+                <p><strong>G<sup>1</sup>:</strong> \(\mathbf{P}'_1(1) = \alpha \mathbf{P}'_2(0)\), where \(\alpha > 0\)</p>
+            </div>
+
+            <div class="warning-box">
+                <strong>Important:</strong> Two collinear line segments are always G<sup>1</sup> continuous, but may not be C<sup>1</sup> continuous if they have different parameterizations!
+            </div>
+
+            <div class="canvas-container">
+                <h3>Interactive Demo: Continuity Types</h3>
+                <canvas id="continuityCanvas" width="800" height="400"></canvas>
+                <div class="controls">
+                    <button onclick="setContinuityType('c0')">C⁰ (Position Only)</button>
+                    <button onclick="setContinuityType('c1')">C¹ (Tangent Match)</button>
+                    <button onclick="setContinuityType('g1')">G¹ (Direction Only)</button>
+                    <button onclick="setContinuityType('c2')">C² (Curvature Match)</button>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff6b6b;"></div>
+                        <span>First Curve</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #4ecdc4;"></div>
+                        <span>Second Curve</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #95e1d3;"></div>
+                        <span>Tangent Vectors</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bézier Curves -->
+        <div class="section">
+            <h2>3. Bézier Curves</h2>
+            
+            <h3>The de Casteljau Algorithm</h3>
+            <p>Bézier curves are constructed through recursive linear interpolation. For parameter t:</p>
+            
+            <div class="math-display">
+                \[\mathbf{P}_i^{(r)}(t) = (1-t)\mathbf{P}_i^{(r-1)}(t) + t\mathbf{P}_{i+1}^{(r-1)}(t)\]
+            </div>
+
+            <h3>Bernstein Form</h3>
+            <p>A Bézier curve of degree n with control points \(\mathbf{P}_0, \ldots, \mathbf{P}_n\):</p>
+            
+            <div class="math-display">
+                \[\mathbf{C}(t) = \sum_{i=0}^{n} B_{i,n}(t) \mathbf{P}_i\]
+                \[B_{i,n}(t) = \binom{n}{i} t^i (1-t)^{n-i}\]
+            </div>
+
+            <div class="canvas-container">
+                <h3>Interactive Demo: Cubic Bézier Curve</h3>
+                <canvas id="bezierCanvas" width="800" height="500"></canvas>
+                <div class="controls">
+                    <button onclick="resetBezier()">Reset Points</button>
+                    <button onclick="toggleDeCasteljau()">Toggle de Casteljau</button>
+                    <button onclick="toggleBasis()">Toggle Basis Functions</button>
+                    <div class="slider-container">
+                        <label>Parameter t:</label>
+                        <input type="range" id="bezierT" min="0" max="100" value="50" oninput="updateBezierT(this.value)">
+                        <span class="slider-value" id="bezierTValue">0.50</span>
+                    </div>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #667eea;"></div>
+                        <span>Bézier Curve</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #999;"></div>
+                        <span>Control Polygon</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff6b6b;"></div>
+                        <span>Control Points (drag me!)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>Key Properties of Bézier Curves:</strong>
+                <ul>
+                    <li><strong>Endpoint Interpolation:</strong> Curve passes through first and last control points</li>
+                    <li><strong>Convex Hull:</strong> Curve lies within convex hull of control points</li>
+                    <li><strong>Affine Invariance:</strong> Transform points → transform curve</li>
+                    <li><strong>Tangency:</strong> Curve is tangent to first and last edges at endpoints</li>
+                    <li><strong>Variation Diminishing:</strong> Curve doesn't oscillate more than control polygon</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- B-Splines -->
+        <div class="section">
+            <h2>4. B-Spline Curves</h2>
+            
+            <h3>Motivation</h3>
+            <p>Bézier curves have a limitation: moving one control point affects the <em>entire</em> curve. B-splines provide <strong>local control</strong>.</p>
+
+            <h3>Definition</h3>
+            <p>A B-spline curve of degree p with n+1 control points and knot vector \(\mathbf{U} = \{u_0, u_1, \ldots, u_m\}\):</p>
+            
+            <div class="math-display">
+                \[\mathbf{C}(u) = \sum_{i=0}^{n} N_{i,p}(u) \mathbf{P}_i\]
+                <p>where \(N_{i,p}(u)\) are B-spline basis functions defined recursively.</p>
+            </div>
+
+            <div class="canvas-container">
+                <h3>Interactive Demo: Cubic B-Spline</h3>
+                <canvas id="bsplineCanvas" width="800" height="500"></canvas>
+                <div class="controls">
+                    <button onclick="addBSplinePoint()">Add Point</button>
+                    <button onclick="removeBSplinePoint()">Remove Point</button>
+                    <button onclick="resetBSpline()">Reset</button>
+                    <div class="slider-container">
+                        <label>Degree:</label>
+                        <input type="range" id="bsplineDegree" min="2" max="3" value="3" oninput="updateBSplineDegree(this.value)">
+                        <span class="slider-value" id="bsplineDegreeValue">3</span>
+                    </div>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff6b6b;"></div>
+                        <span>B-Spline Curve</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #999;"></div>
+                        <span>Control Polygon</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>B-Spline Advantages:</strong>
+                <ul>
+                    <li><strong>Local Control:</strong> Moving control point affects only nearby curve segments</li>
+                    <li><strong>Flexibility:</strong> Add/remove control points without changing curve degree</li>
+                    <li><strong>Continuity Control:</strong> Knot multiplicity controls smoothness</li>
+                    <li><strong>Generalization:</strong> Bézier curves are special case</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- NURBS -->
+        <div class="section">
+            <h2>5. NURBS (Non-Uniform Rational B-Splines)</h2>
+            
+            <h3>Why NURBS?</h3>
+            <p>Polynomial curves cannot exactly represent circles, ellipses, or hyperbolas. NURBS use <em>rational</em> functions (ratios of polynomials) to solve this.</p>
+
+            <h3>Definition</h3>
+            <p>NURBS curve with control points \(\mathbf{P}_i\) and weights \(w_i\):</p>
+            
+            <div class="math-display">
+                \[\mathbf{C}(u) = \frac{\sum_{i=0}^{n} N_{i,p}(u) w_i \mathbf{P}_i}{\sum_{i=0}^{n} N_{i,p}(u) w_i}\]
+            </div>
+
+            <div class="canvas-container">
+                <h3>Interactive Demo: NURBS Circle</h3>
+                <canvas id="nurbsCanvas" width="800" height="500"></canvas>
+                <div class="controls">
+                    <button onclick="resetNURBS()">Reset</button>
+                    <div class="slider-container">
+                        <label>Middle Weight:</label>
+                        <input type="range" id="nurbsWeight" min="10" max="300" value="141" oninput="updateNURBSWeight(this.value)">
+                        <span class="slider-value" id="nurbsWeightValue">1.41</span>
+                    </div>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #764ba2;"></div>
+                        <span>NURBS Curve</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ccc;"></div>
+                        <span>Reference Circle</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff6b6b;"></div>
+                        <span>Control Points</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>NURBS Properties:</strong>
+                <ul>
+                    <li><strong>Weight Effect:</strong> Increasing w<sub>i</sub> pulls curve toward P<sub>i</sub></li>
+                    <li><strong>Exact Conics:</strong> Can represent circles, ellipses, hyperbolas exactly</li>
+                    <li><strong>Projective Invariance:</strong> Preserved under projective transformations</li>
+                    <li><strong>Industry Standard:</strong> Used in CAD, animation, font design</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Comparison -->
+        <div class="section">
+            <h2>6. Comparison and Applications</h2>
+            
+            <table>
+                <tr>
+                    <th>Feature</th>
+                    <th>Bézier</th>
+                    <th>B-Spline</th>
+                    <th>NURBS</th>
+                </tr>
+                <tr>
+                    <td><strong>Local Control</strong></td>
+                    <td>❌ No</td>
+                    <td>✅ Yes</td>
+                    <td>✅ Yes</td>
+                </tr>
+                <tr>
+                    <td><strong>Exact Conics</strong></td>
+                    <td>❌ No</td>
+                    <td>❌ No</td>
+                    <td>✅ Yes</td>
+                </tr>
+                <tr>
+                    <td><strong>Endpoint Interpolation</strong></td>
+                    <td>✅ Always</td>
+                    <td>⚠️ With clamping</td>
+                    <td>⚠️ With clamping</td>
+                </tr>
+                <tr>
+                    <td><strong>Complexity</strong></td>
+                    <td>Simple</td>
+                    <td>Moderate</td>
+                    <td>Complex</td>
+                </tr>
+                <tr>
+                    <td><strong>Use Cases</strong></td>
+                    <td>Fonts, simple paths</td>
+                    <td>Animation, modeling</td>
+                    <td>CAD, precise engineering</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Continuity Demo
+        let continuityType = 'c0';
+        
+        function setContinuityType(type) {
+            continuityType = type;
+            drawContinuity();
+        }
+        
+        function drawContinuity() {
+            const canvas = document.getElementById('continuityCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const p0 = {x: 100, y: 200};
+            const p1 = {x: 200, y: 100};
+            const p2 = {x: 300, y: 200};
+            const p3 = {x: 400, y: 200};
+            
+            let q1, q2;
+            const q0 = p3;
+            const q3 = {x: 700, y: 200};
+            
+            if (continuityType === 'c0') {
+                q1 = {x: 500, y: 300};
+                q2 = {x: 600, y: 100};
+            } else if (continuityType === 'c1') {
+                const dx = p3.x - p2.x;
+                const dy = p3.y - p2.y;
+                q1 = {x: p3.x + dx, y: p3.y + dy};
+                q2 = {x: 600, y: 100};
+            } else if (continuityType === 'g1') {
+                const dx = p3.x - p2.x;
+                const dy = p3.y - p2.y;
+                const scale = 1.5;
+                q1 = {x: p3.x + dx * scale, y: p3.y + dy * scale};
+                q2 = {x: 600, y: 100};
+            } else if (continuityType === 'c2') {
+                const dx = p3.x - p2.x;
+                const dy = p3.y - p2.y;
+                q1 = {x: p3.x + dx, y: p3.y + dy};
+                const dx2 = p2.x - p1.x;
+                const dy2 = p2.y - p1.y;
+                q2 = {x: q1.x + dx2, y: q1.y + dy2};
+            }
+            
+            ctx.strokeStyle = '#ff6b6b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(p0.x, p0.y);
+            ctx.bezierCurveTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+            ctx.stroke();
+            
+            ctx.strokeStyle = '#4ecdc4';
+            ctx.beginPath();
+            ctx.moveTo(q0.x, q0.y);
+            ctx.bezierCurveTo(q1.x, q1.y, q2.x, q2.y, q3.x, q3.y);
+            ctx.stroke();
+            
+            if (continuityType !== 'c0') {
+                ctx.strokeStyle = '#95e1d3';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                
+                const t1dx = 3 * (p3.x - p2.x);
+                const t1dy = 3 * (p3.y - p2.y);
+                ctx.beginPath();
+                ctx.moveTo(p3.x, p3.y);
+                ctx.lineTo(p3.x + t1dx * 0.3, p3.y + t1dy * 0.3);
+                ctx.stroke();
+                
+                const t2dx = 3 * (q1.x - q0.x);
+                const t2dy = 3 * (q1.y - q0.y);
+                ctx.beginPath();
+                ctx.moveTo(q0.x, q0.y);
+                ctx.lineTo(q0.x + t2dx * 0.3, q0.y + t2dy * 0.3);
+                ctx.stroke();
+                
+                ctx.setLineDash([]);
+            }
+            
+            ctx.fillStyle = '#999';
+            [p1, p2, q1, q2].forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            ctx.fillStyle = '#ff6b6b';
+            ctx.beginPath();
+            ctx.arc(p3.x, p3.y, 6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Bézier Demo
+        let bezierPoints = [
+            {x: 100, y: 350}, {x: 200, y: 100},
+            {x: 500, y: 100}, {x: 700, y: 350}
+        ];
+        let bezierT = 0.5;
+        let showDeCasteljau = false;
+        let showBasis = false;
+        let draggingBezier = null;
+        
+        const bezierCanvas = document.getElementById('bezierCanvas');
+        const bezierCtx = bezierCanvas.getContext('2d');
+        
+        bezierCanvas.addEventListener('mousedown', (e) => {
+            const rect = bezierCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            for (let i = 0; i < bezierPoints.length; i++) {
+                const dx = x - bezierPoints[i].x;
+                const dy = y - bezierPoints[i].y;
+                if (dx*dx + dy*dy < 100) {
+                    draggingBezier = i;
+                    break;
+                }
+            }
+        });
+        
+        bezierCanvas.addEventListener('mousemove', (e) => {
+            if (draggingBezier !== null) {
+                const rect = bezierCanvas.getBoundingClientRect();
+                bezierPoints[draggingBezier].x = e.clientX - rect.left;
+                bezierPoints[draggingBezier].y = e.clientY - rect.top;
+                drawBezier();
+            }
+        });
+        
+        bezierCanvas.addEventListener('mouseup', () => {
+            draggingBezier = null;
+        });
+        
+        function evalBezier(t, p0, p1, p2, p3) {
+            const mt = 1 - t;
+            return {
+                x: mt*mt*mt*p0.x + 3*mt*mt*t*p1.x + 3*mt*t*t*p2.x + t*t*t*p3.x,
+                y: mt*mt*mt*p0.y + 3*mt*mt*t*p1.y + 3*mt*t*t*p2.y + t*t*t*p3.y
+            };
+        }
+        
+        function drawBezier() {
+            bezierCtx.clearRect(0, 0, bezierCanvas.width, bezierCanvas.height);
+            
+            // Draw curve
+            bezierCtx.strokeStyle = '#667eea';
+            bezierCtx.lineWidth = 3;
+            bezierCtx.beginPath();
+            for (let t = 0; t <= 1; t += 0.01) {
+                const p = evalBezier(t, ...bezierPoints);
+                if (t === 0) bezierCtx.moveTo(p.x, p.y);
+                else bezierCtx.lineTo(p.x, p.y);
+            }
+            bezierCtx.stroke();
+            
+            // Draw control polygon
+            bezierCtx.strokeStyle = '#999';
+            bezierCtx.lineWidth = 1;
+            bezierCtx.setLineDash([5, 5]);
+            bezierCtx.beginPath();
+            bezierCtx.moveTo(bezierPoints[0].x, bezierPoints[0].y);
+            for (let i = 1; i < bezierPoints.length; i++) {
+                bezierCtx.lineTo(bezierPoints[i].x, bezierPoints[i].y);
+            }
+            bezierCtx.stroke();
+            bezierCtx.setLineDash([]);
+            
+            // Draw de Casteljau
+            if (showDeCasteljau) {
+                const [p0, p1, p2, p3] = bezierPoints;
+                const t = bezierT;
+                const mt = 1 - t;
+                
+                const p01 = {x: mt*p0.x + t*p1.x, y: mt*p0.y + t*p1.y};
+                const p12 = {x: mt*p1.x + t*p2.x, y: mt*p1.y + t*p2.y};
+                const p23 = {x: mt*p2.x + t*p3.x, y: mt*p2.y + t*p3.y};
+                
+                const p012 = {x: mt*p01.x + t*p12.x, y: mt*p01.y + t*p12.y};
+                const p123 = {x: mt*p12.x + t*p23.x, y: mt*p12.y + t*p23.y};
+                
+                bezierCtx.strokeStyle = 'rgba(255, 107, 107, 0.5)';
+                bezierCtx.lineWidth = 2;
+                bezierCtx.beginPath();
+                bezierCtx.moveTo(p01.x, p01.y);
+                bezierCtx.lineTo(p12.x, p12.y);
+                bezierCtx.lineTo(p23.x, p23.y);
+                bezierCtx.stroke();
+                
+                bezierCtx.beginPath();
+                bezierCtx.moveTo(p012.x, p012.y);
+                bezierCtx.lineTo(p123.x, p123.y);
+                bezierCtx.stroke();
+                
+                bezierCtx.fillStyle = 'rgba(255, 107, 107, 0.7)';
+                [p01, p12, p23, p012, p123].forEach(p => {
+                    bezierCtx.beginPath();
+                    bezierCtx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                    bezierCtx.fill();
+                });
+            }
+            
+            // Draw basis functions
+            if (showBasis) {
+                const chartH = 100;
+                const chartY = bezierCanvas.height - chartH - 10;
+                bezierCtx.fillStyle = 'rgba(240, 240, 240, 0.9)';
+                bezierCtx.fillRect(10, chartY, bezierCanvas.width - 20, chartH);
+                
+                const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
+                for (let i = 0; i < 4; i++) {
+                    bezierCtx.strokeStyle = colors[i];
+                    bezierCtx.lineWidth = 2;
+                    bezierCtx.beginPath();
+                    for (let t = 0; t <= 1; t += 0.01) {
+                        const mt = 1 - t;
+                        let b;
+                        if (i === 0) b = mt*mt*mt;
+                        else if (i === 1) b = 3*mt*mt*t;
+                        else if (i === 2) b = 3*mt*t*t;
+                        else b = t*t*t;
+                        
+                        const x = 10 + t * (bezierCanvas.width - 20);
+                        const y = chartY + chartH - b * chartH;
+                        if (t === 0) bezierCtx.moveTo(x, y);
+                        else bezierCtx.lineTo(x, y);
+                    }
+                    bezierCtx.stroke();
+                }
+                
+                // Draw t marker
+                const x = 10 + bezierT * (bezierCanvas.width - 20);
+                bezierCtx.strokeStyle = '#333';
+                bezierCtx.lineWidth = 1;
+                bezierCtx.setLineDash([3, 3]);
+                bezierCtx.beginPath();
+                bezierCtx.moveTo(x, chartY);
+                bezierCtx.lineTo(x, chartY + chartH);
+                bezierCtx.stroke();
+                bezierCtx.setLineDash([]);
+            }
+            
+            // Draw control points
+            bezierCtx.fillStyle = '#ff6b6b';
+            bezierPoints.forEach(p => {
+                bezierCtx.beginPath();
+                bezierCtx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+                bezierCtx.fill();
+            });
+            
+            // Draw current point
+            const curr = evalBezier(bezierT, ...bezierPoints);
+            bezierCtx.fillStyle = '#667eea';
+            bezierCtx.beginPath();
+            bezierCtx.arc(curr.x, curr.y, 6, 0, Math.PI * 2);
+            bezierCtx.fill();
+        }
+        
+        function resetBezier() {
+            bezierPoints = [
+                {x: 100, y: 350}, {x: 200, y: 100},
+                {x: 500, y: 100}, {x: 700, y: 350}
+            ];
+            drawBezier();
+        }
+        
+        function toggleDeCasteljau() {
+            showDeCasteljau = !showDeCasteljau;
+            drawBezier();
+        }
+        
+        function toggleBasis() {
+            showBasis = !showBasis;
+            drawBezier();
+        }
+        
+        function updateBezierT(val) {
+            bezierT = val / 100;
+            document.getElementById('bezierTValue').textContent = bezierT.toFixed(2);
+            drawBezier();
+        }
+        
+        // B-Spline Demo
+        let bsplinePoints = [
+            {x: 100, y: 250}, {x: 200, y: 100}, {x: 350, y: 400},
+            {x: 500, y: 100}, {x: 650, y: 400}, {x: 700, y: 250}
+        ];
+        let bsplineDegree = 3;
+        let draggingBSpline = null;
+        
+        const bsplineCanvas = document.getElementById('bsplineCanvas');
+        const bsplineCtx = bsplineCanvas.getContext('2d');
+        
+        bsplineCanvas.addEventListener('mousedown', (e) => {
+            const rect = bsplineCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            for (let i = 0; i < bsplinePoints.length; i++) {
+                const dx = x - bsplinePoints[i].x;
+                const dy = y - bsplinePoints[i].y;
+                if (dx*dx + dy*dy < 100) {
+                    draggingBSpline = i;
+                    break;
+                }
+            }
+        });
+        
+        bsplineCanvas.addEventListener('mousemove', (e) => {
+            if (draggingBSpline !== null) {
+                const rect = bsplineCanvas.getBoundingClientRect();
+                bsplinePoints[draggingBSpline].x = e.clientX - rect.left;
+                bsplinePoints[draggingBSpline].y = e.clientY - rect.top;
+                drawBSpline();
+            }
+        });
+        
+        bsplineCanvas.addEventListener('mouseup', () => {
+            draggingBSpline = null;
+        });
+        
+        function bsplineBasis(i, p, u, knots) {
+            if (p === 0) {
+                return (u >= knots[i] && u < knots[i + 1]) ? 1 : 0;
+            }
+            
+            let d1 = knots[i + p] - knots[i];
+            let d2 = knots[i + p + 1] - knots[i + 1];
+            
+            let c1 = 0, c2 = 0;
+            if (d1 > 1e-6) c1 = (u - knots[i]) / d1 * bsplineBasis(i, p - 1, u, knots);
+            if (d2 > 1e-6) c2 = (knots[i + p + 1] - u) / d2 * bsplineBasis(i + 1, p - 1, u, knots);
+            
+            return c1 + c2;
+        }
+        
+        function evalBSpline(u, points, degree, knots) {
+            let x = 0, y = 0;
+            const n = points.length - 1;
+            
+            for (let i = 0; i <= n; i++) {
+                const basis = bsplineBasis(i, degree, u, knots);
+                x += basis * points[i].x;
+                y += basis * points[i].y;
+            }
+            
+            return {x, y};
+        }
+        
+        function generateKnotVector(n, p) {
+            const m = n + p + 1;
+            const knots = [];
+            
+            for (let i = 0; i <= p; i++) knots.push(0);
+            for (let i = 1; i < n - p + 1; i++) knots.push(i);
+            for (let i = 0; i <= p; i++) knots.push(n - p + 1);
+            
+            return knots;
+        }
+        
+        function drawBSpline() {
+            bsplineCtx.clearRect(0, 0, bsplineCanvas.width, bsplineCanvas.height);
+            
+            const n = bsplinePoints.length - 1;
+            const p = bsplineDegree;
+            const knots = generateKnotVector(n, p);
+            const uMin = knots[p];
+            const uMax = knots[n + 1];
+            
+            // Draw curve
+            bsplineCtx.strokeStyle = '#ff6b6b';
+            bsplineCtx.lineWidth = 3;
+            bsplineCtx.beginPath();
+            let first = true;
+            for (let u = uMin; u <= uMax; u += 0.01) {
+                const pt = evalBSpline(u, bsplinePoints, p, knots);
+                if (first) {
+                    bsplineCtx.moveTo(pt.x, pt.y);
+                    first = false;
+                } else {
+                    bsplineCtx.lineTo(pt.x, pt.y);
+                }
+            }
+            bsplineCtx.stroke();
+            
+            // Draw control polygon
+            bsplineCtx.strokeStyle = '#999';
+            bsplineCtx.lineWidth = 1;
+            bsplineCtx.setLineDash([5, 5]);
+            bsplineCtx.beginPath();
+            bsplineCtx.moveTo(bsplinePoints[0].x, bsplinePoints[0].y);
+            for (let i = 1; i < bsplinePoints.length; i++) {
+                bsplineCtx.lineTo(bsplinePoints[i].x, bsplinePoints[i].y);
+            }
+            bsplineCtx.stroke();
+            bsplineCtx.setLineDash([]);
+            
+            // Draw control points
+            bsplineCtx.fillStyle = '#4ecdc4';
+            bsplinePoints.forEach(pt => {
+                bsplineCtx.beginPath();
+                bsplineCtx.arc(pt.x, pt.y, 8, 0, Math.PI * 2);
+                bsplineCtx.fill();
+            });
+        }
+        
+        function addBSplinePoint() {
+            const lastPt = bsplinePoints[bsplinePoints.length - 1];
+            bsplinePoints.push({x: lastPt.x + 50, y: lastPt.y});
+            drawBSpline();
+        }
+        
+        function removeBSplinePoint() {
+            if (bsplinePoints.length > 4) {
+                bsplinePoints.pop();
+                drawBSpline();
+            }
+        }
+        
+        function resetBSpline() {
+            bsplinePoints = [
+                {x: 100, y: 250}, {x: 200, y: 100}, {x: 350, y: 400},
+                {x: 500, y: 100}, {x: 650, y: 400}, {x: 700, y: 250}
+            ];
+            drawBSpline();
+        }
+        
+        function updateBSplineDegree(val) {
+            bsplineDegree = parseInt(val);
+            document.getElementById('bsplineDegreeValue').textContent = bsplineDegree;
+            drawBSpline();
+        }
+        
+        // NURBS Demo
+        let nurbsWeight = 1.41;
+        
+        function drawNURBS() {
+            const canvas = document.getElementById('nurbsCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const cx = 400, cy = 250, r = 150;
+            
+            // Draw reference circle
+            ctx.strokeStyle = '#ccc';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // NURBS circle using 9 control points (4 arcs)
+            const w = nurbsWeight;
+            const controlPoints = [
+                {x: cx + r, y: cy, w: 1},
+                {x: cx + r, y: cy - r, w: w},
+                {x: cx, y: cy - r, w: 1},
+                {x: cx - r, y: cy - r, w: w},
+                {x: cx - r, y: cy, w: 1},
+                {x: cx - r, y: cy + r, w: w},
+                {x: cx, y: cy + r, w: 1},
+                {x: cx + r, y: cy + r, w: w},
+                {x: cx + r, y: cy, w: 1}
+            ];
+            
+            const degree = 2;
+            const knots = [0, 0, 0, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1, 1, 1];
+            
+            // Draw NURBS curve
+            ctx.strokeStyle = '#764ba2';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            let first = true;
+            
+            for (let u = 0; u <= 1; u += 0.005) {
+                let xNum = 0, yNum = 0, denom = 0;
+                
+                for (let i = 0; i < controlPoints.length; i++) {
+                    const basis = bsplineBasis(i, degree, u, knots);
+                    const wb = basis * controlPoints[i].w;
+                    xNum += wb * controlPoints[i].x;
+                    yNum += wb * controlPoints[i].y;
+                    denom += wb;
+                }
+                
+                if (denom > 1e-6) {
+                    const x = xNum / denom;
+                    const y = yNum / denom;
+                    
+                    if (first) {
+                        ctx.moveTo(x, y);
+                        first = false;
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+            }
+            ctx.stroke();
+            
+            // Draw control polygon
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(controlPoints[0].x, controlPoints[0].y);
+            for (let i = 1; i < controlPoints.length; i++) {
+                ctx.lineTo(controlPoints[i].x, controlPoints[i].y);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw control points
+            controlPoints.forEach((pt, i) => {
+                ctx.fillStyle = pt.w === 1 ? '#ff6b6b' : '#ffaa00';
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, pt.w === 1 ? 6 : 8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        function resetNURBS() {
+            nurbsWeight = 1.41;
+            document.getElementById('nurbsWeight').value = 141;
+            document.getElementById('nurbsWeightValue').textContent = '1.41';
+            drawNURBS();
+        }
+        
+        function updateNURBSWeight(val) {
+            nurbsWeight = val / 100;
+            document.getElementById('nurbsWeightValue').textContent = nurbsWeight.toFixed(2);
+            drawNURBS();
+        }
+        
+        // Initialize all demos
+        window.addEventListener('load', () => {
+            drawContinuity();
+            drawBezier();
+            drawBSpline();
+            drawNURBS();
+        });
+    </script>
+</body>
+</html>
+                

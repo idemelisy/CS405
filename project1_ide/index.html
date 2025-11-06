@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS405 Project 1 - 3D Transformations and Curves</title>
+    <!-- UI styling based on lab2/affine.html and interactive demos -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 10px;
+        }
+        
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+        }
+        
+        .canvas-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        canvas {
+            display: block;
+            border: 2px solid #667eea;
+            background: #222;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 800px;
+            height: 600px;
+        }
+        
+        .controls-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        
+        .control-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .control-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .slider-value {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 14px;
+            min-width: 60px;
+            text-align: right;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 80px;
+        }
+        
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+        
+        button.active {
+            background: #764ba2;
+        }
+        
+        .matrix-display {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre;
+        }
+        
+        .info-display {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 12px;
+            border-left: 4px solid #2196F3;
+        }
+        
+        .camera-info {
+            font-size: 11px;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        .instruction-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body onload="initializeApplication()">
+    <div class="container">
+        <header>
+            <h1>3D Transformations, Projection, and Bézier Curves</h1>
+            <p>CS405 Project 1 - Interactive WebGL Implementation</p>
+        </header>
+        
+        <div class="main-content">
+            <!-- Canvas Section -->
+            <div class="canvas-section">
+                <canvas id="webglCanvas" width="800" height="600"></canvas>
+                
+                <div class="instruction-box">
+                    <strong>Mouse Controls:</strong>
+                    • Drag to rotate camera • Scroll to zoom • Click on Bézier control points to move them
+                </div>
+            </div>
+            
+            <!-- Controls Panel -->
+            <div class="controls-panel">
+                <!-- Object Transformations -->
+                <div class="control-section">
+                    <h3>Object Transformations</h3>
+                    
+                    <div class="control-group">
+                        <label>Translate X: <span class="slider-value" id="translateXValue">0.0</span></label>
+                        <input type="range" id="translateX" min="-5" max="5" step="0.1" value="0" oninput="updateTransformation()">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Translate Y: <span class="slider-value" id="translateYValue">0.0</span></label>
+                        <input type="range" id="translateY" min="-5" max="5" step="0.1" value="0" oninput="updateTransformation()">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Translate Z: <span class="slider-value" id="translateZValue">0.0</span></label>
+                        <input type="range" id="translateZ" min="-5" max="5" step="0.1" value="0" oninput="updateTransformation()">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Rotate X: <span class="slider-value" id="rotateXValue">0°</span></label>
+                        <input type="range" id="rotateX" min="-180" max="180" step="5" value="0" oninput="updateTransformation()">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Rotate Y: <span class="slider-value" id="rotateYValue">0°</span></label>
+                        <input type="range" id="rotateY" min="-180" max="180" step="5" value="0" oninput="updateTransformation()">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Rotate Z: <span class="slider-value" id="rotateZValue">0°</span></label>
+                        <input type="range" id="rotateZ" min="-180" max="180" step="5" value="0" oninput="updateTransformation()">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Scale X: <span class="slider-value" id="scaleXValue">1.0</span></label>
+                        <input type="range" id="scaleX" min="0.1" max="3" step="0.1" value="1" oninput="updateTransformation()">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Scale Y: <span class="slider-value" id="scaleYValue">1.0</span></label>
+                        <input type="range" id="scaleY" min="0.1" max="3" step="0.1" value="1" oninput="updateTransformation()">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Scale Z: <span class="slider-value" id="scaleZValue">1.0</span></label>
+                        <input type="range" id="scaleZ" min="0.1" max="3" step="0.1" value="1" oninput="updateTransformation()">
+                    </div>
+                </div>
+
+                <!-- Transformation Order -->
+                <div class="control-section">
+                    <h3>Transformation Order</h3>
+                    <div class="button-group">
+                        <button onclick="setTransformationOrder('TRS')" id="btnTRS" class="active">TRS</button>
+                        <button onclick="setTransformationOrder('TSR')" id="btnTSR">TSR</button>
+                        <button onclick="setTransformationOrder('RTS')" id="btnRTS">RTS</button>
+                        <button onclick="setTransformationOrder('RST')" id="btnRST">RST</button>
+                        <button onclick="setTransformationOrder('STR')" id="btnSTR">STR</button>
+                        <button onclick="setTransformationOrder('SRT')" id="btnSRT">SRT</button>
+                    </div>
+                </div>
+
+                <!-- Camera Controls -->
+                <div class="control-section">
+                    <h3>Camera & Projection</h3>
+                    
+                    <div class="button-group">
+                        <button onclick="toggleProjection()" id="projectionBtn">Perspective</button>
+                        <button onclick="resetCamera()">Reset Camera</button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Field of View: <span class="slider-value" id="fovValue">45°</span></label>
+                        <input type="range" id="fieldOfView" min="10" max="120" step="1" value="45" oninput="updateCamera()">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Near Plane: <span class="slider-value" id="nearValue">0.1</span></label>
+                        <input type="range" id="nearPlane" min="1" max="200" step="1" value="1" oninput="updateNearPlane()">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Far Plane: <span class="slider-value" id="farValue">100.0</span></label>
+                        <input type="range" id="farPlane" min="20" max="500" step="10" value="100" oninput="updateFarPlane()">
+                    </div>
+                </div>
+
+                <!-- Bézier Curve Controls -->
+                <div class="control-section">
+                    <h3>Bézier Curve</h3>
+                    
+                    <div class="button-group">
+                        <button onclick="toggleBezierAnimation()" id="animationBtn">Start Animation</button>
+                        <button onclick="resetBezierCurve()">Reset Curve</button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Animation Speed: <span class="slider-value" id="speedValue">0.005</span></label>
+                        <input type="range" id="animationSpeed" min="1" max="20" step="1" value="5" oninput="updateAnimationSpeed()">
+                    </div>
+                    
+                    <div class="info-display" id="bezierInfo">
+                        Animation Parameter: <span id="bezierParam">0.000</span>
+                    </div>
+                </div>
+
+                <!-- View Options -->
+                <div class="control-section">
+                    <h3>View Options</h3>
+                    
+                    <div class="button-group">
+                        <button onclick="toggleAxes()" id="axesBtn">Show Axes</button>
+                        <button onclick="toggleGrid()" id="gridBtn">Show Grid</button>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button onclick="toggleBezierCurve()" id="curveBtn">Show Curve</button>
+                        <button onclick="toggleControlPoints()" id="controlBtn">Show Controls</button>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button onclick="toggleFrustum()" id="frustumBtn">Show Frustum</button>
+                    </div>
+                </div>
+
+                <!-- Matrix Display -->
+                <div class="control-section">
+                    <h3>Matrix Data (JSON Format)</h3>
+                    
+                    <div class="button-group">
+                        <button onclick="showModelMatrix()" id="modelBtn">Model (M)</button>
+                        <button onclick="showViewMatrix()" id="viewBtn">View (V)</button>
+                        <button onclick="showProjectionMatrix()" id="projBtn">Projection (P)</button>
+                    </div>
+                    
+                    <div class="matrix-display" id="matrixOutput">
+                        Click a matrix button to view the data...
+                    </div>
+                </div>
+
+                <!-- Camera Information -->
+                <div class="camera-info" id="cameraInfo">
+                    Camera Position: (0.0, 5.0, 10.0)<br>
+                    Target: (0.0, 0.0, 0.0)<br>
+                    Distance: 15.0
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts - Load order matters -->
+    <script src="math.js"></script>
+    <script src="camera.js"></script>
+    <script src="bezier.js"></script>
+    <script src="render.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Viewing in WebGL</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/3.4.2/gl-matrix-min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            border-radius: 10px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            color: #667eea;
+            margin: 30px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        h3 {
+            color: #764ba2;
+            margin: 20px 0 10px 0;
+        }
+        
+        .section {
+            background: white;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .demo-container {
+            background: #fafafa;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        canvas {
+            display: block;
+            border: 2px solid #667eea;
+            background: #000;
+            border-radius: 5px;
+            cursor: move;
+            width: 100%;
+            max-width: 800px;
+            height: 600px;
+        }
+        
+        .controls {
+            margin: 15px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+        
+        label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #555;
+        }
+        
+        .math-display {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .slider-value {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 16px;
+            text-align: center;
+        }
+        
+        .instruction-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .instruction-box strong {
+            color: #2e7d32;
+        }
+        
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .coordinate-diagram {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        
+        th {
+            background: #667eea;
+            color: white;
+        }
+        
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>3D Viewing in WebGL</h1>
+        <p>Understanding Projection Matrices, Camera Coordinates, and the View Pipeline</p>
+    </header>
+
+    <div class="container">
+        <!-- Introduction -->
+        <div class="section">
+            <h2>1. Introduction to 3D Viewing</h2>
+            <p>In 3D computer graphics, viewing involves transforming a 3D world into a 2D image. This process requires:</p>
+            
+            <div class="info-box">
+                <strong>The 3D Viewing Pipeline:</strong>
+                <ol>
+                    <li><strong>Model Transformation:</strong> Place objects in the world</li>
+                    <li><strong>View Transformation:</strong> Position the camera in the world</li>
+                    <li><strong>Projection:</strong> Project 3D points onto 2D view plane</li>
+                    <li><strong>Clipping:</strong> Remove geometry outside the view volume</li>
+                    <li><strong>Viewport Transformation:</strong> Map to screen coordinates</li>
+                </ol>
+            </div>
+
+            <h3>Camera Coordinate System</h3>
+            <p>The camera has its own coordinate system with origin at the eye position:</p>
+            
+            <div class="math-display">
+                <p><strong>Camera Axes:</strong></p>
+                <ul>
+                    <li><strong>n (forward):</strong> Direction from eye to look-at point: \(\mathbf{n} = \frac{\text{eye} - \text{look}}{\|\text{eye} - \text{look}\|}\)</li>
+                    <li><strong>u (right):</strong> Right direction: \(\mathbf{u} = \frac{\text{up} \times \mathbf{n}}{\|\text{up} \times \mathbf{n}\|}\)</li>
+                    <li><strong>v (up):</strong> Camera up: \(\mathbf{v} = \mathbf{n} \times \mathbf{u}\)</li>
+                </ul>
+            </div>
+
+            <svg width="600" height="400" class="coordinate-diagram">
+                <!-- World axes -->
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                        <polygon points="0 0, 10 3, 0 6" fill="#333" />
+                    </marker>
+                </defs>
+                
+                <!-- World coordinate system -->
+                <g transform="translate(150, 300)">
+                    <line x1="0" y1="0" x2="100" y2="0" stroke="#e74c3c" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="110" y="5" fill="#e74c3c" font-weight="bold">X</text>
+                    
+                    <line x1="0" y1="0" x2="0" y2="-100" stroke="#2ecc71" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="-10" y="-110" fill="#2ecc71" font-weight="bold">Y</text>
+                    
+                    <line x1="0" y1="0" x2="-70" y2="70" stroke="#3498db" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="-90" y="80" fill="#3498db" font-weight="bold">Z</text>
+                    
+                    <text x="-30" y="30" font-size="14" fill="#666">World Origin</text>
+                </g>
+                
+                <!-- Camera coordinate system -->
+                <g transform="translate(450, 200)">
+                    <circle cx="0" cy="0" r="5" fill="#667eea"/>
+                    
+                    <line x1="0" y1="0" x2="80" y2="0" stroke="#ff6b6b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="90" y="5" fill="#ff6b6b" font-weight="bold">u</text>
+                    
+                    <line x1="0" y1="0" x2="0" y2="-80" stroke="#4ecdc4" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="-10" y="-90" fill="#4ecdc4" font-weight="bold">v</text>
+                    
+                    <line x1="0" y1="0" x2="-55" y2="55" stroke="#f39c12" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="-75" y="65" fill="#f39c12" font-weight="bold">n</text>
+                    
+                    <text x="-30" y="85" font-size="14" fill="#667eea" font-weight="bold">Eye</text>
+                </g>
+                
+                <!-- Connection -->
+                <line x1="150" y1="300" x2="450" y2="200" stroke="#999" stroke-width="1" stroke-dasharray="5,5"/>
+            </svg>
+        </div>
+
+        <!-- Projection Matrices -->
+        <div class="section">
+            <h2>2. Projection Matrices</h2>
+            
+            <h3>Perspective Projection</h3>
+            <p>Perspective projection mimics how our eyes see the world: distant objects appear smaller.</p>
+            
+            <div class="math-display">
+                <p><strong>Perspective Projection Formula:</strong></p>
+                \[P'_x = N \frac{P_x}{-P_z}, \quad P'_y = N \frac{P_y}{-P_z}\]
+                <p>where N is the near plane distance, and the denominator \(-P_z\) creates foreshortening.</p>
+                
+                <p><strong>Perspective Matrix (OpenGL/WebGL):</strong></p>
+                \[M_{\text{perspective}} = \begin{bmatrix}
+                \frac{2N}{r-l} & 0 & \frac{r+l}{r-l} & 0 \\
+                0 & \frac{2N}{t-b} & \frac{t+b}{t-b} & 0 \\
+                0 & 0 & -\frac{F+N}{F-N} & -\frac{2FN}{F-N} \\
+                0 & 0 & -1 & 0
+                \end{bmatrix}\]
+                <p>where l,r,b,t are left, right, bottom, top of near plane, and N,F are near and far distances.</p>
+            </div>
+
+            <h3>Orthographic Projection</h3>
+            <p>Orthographic projection preserves parallel lines and sizes regardless of distance.</p>
+            
+            <div class="math-display">
+                <p><strong>Orthographic Projection Formula:</strong></p>
+                \[P'_x = P_x, \quad P'_y = P_y, \quad P'_z = 0\]
+                
+                <p><strong>Orthographic Matrix:</strong></p>
+                \[M_{\text{ortho}} = \begin{bmatrix}
+                \frac{2}{r-l} & 0 & 0 & -\frac{r+l}{r-l} \\
+                0 & \frac{2}{t-b} & 0 & -\frac{t+b}{t-b} \\
+                0 & 0 & -\frac{2}{F-N} & -\frac{F+N}{F-N} \\
+                0 & 0 & 0 & 1
+                \end{bmatrix}\]
+            </div>
+
+            <div class="warning-box">
+                <strong>Key Difference:</strong> Notice the bottom row of the perspective matrix is \([0, 0, -1, 0]\). 
+                This creates the w-component that enables <strong>perspective division</strong>, while orthographic uses \([0, 0, 0, 1]\).
+            </div>
+        </div>
+
+        <!-- Perspective Division -->
+        <div class="section">
+            <h2>3. Perspective Division and Homogeneous Coordinates</h2>
+            
+            <h3>Homogeneous Coordinates</h3>
+            <p>A 3D point \((x, y, z)\) in homogeneous coordinates becomes \((x, y, z, 1)\), but more generally \((wx, wy, wz, w)\) for any \(w \neq 0\).</p>
+            
+            <div class="math-display">
+                <p><strong>After Projection Matrix Multiplication:</strong></p>
+                \[\begin{bmatrix} x' \\ y' \\ z' \\ w' \end{bmatrix} = M_{\text{proj}} \cdot \begin{bmatrix} x \\ y \\ z \\ 1 \end{bmatrix}\]
+                
+                <p><strong>Perspective Division (normalize by w'):</strong></p>
+                \[\text{NDC} = \begin{bmatrix} x'/w' \\ y'/w' \\ z'/w' \end{bmatrix}\]
+                
+                <p>For perspective projection, \(w' = -z\), so points further away (larger |z|) get divided by a larger number, making them smaller!</p>
+            </div>
+
+            <h3>Pseudo-depth (z-buffer value)</h3>
+            <p>The z-component after perspective division gives us depth information for hidden surface removal:</p>
+            
+            <div class="math-display">
+                \[z_{\text{ndc}} = \frac{aP_z + b}{-P_z}\]
+                <p>where \(a = -\frac{F+N}{F-N}\) and \(b = -\frac{2FN}{F-N}\)</p>
+                <p>This maps depth from \([N, F]\) to \([-1, 1]\) (NDC space), then to \([0, 1]\) for the depth buffer.</p>
+            </div>
+
+            <div class="info-box">
+                <strong>Why "Pseudo-depth"?</strong> It's not the actual Euclidean distance \(\sqrt{x^2+y^2+z^2}\), 
+                but a monotonic function of z that preserves depth ordering while being computationally efficient.
+            </div>
+        </div>
+
+        <!-- Demo 1: Perspective vs Orthographic -->
+        <div class="section">
+            <h2>4. Demo 1: Perspective vs. Orthographic Projection</h2>
+            
+            <div class="instruction-box">
+                <strong>Controls:</strong>
+                <ul>
+                    <li><strong>Mouse Drag:</strong> Rotate camera</li>
+                    <li><strong>Mouse Wheel:</strong> Zoom in/out</li>
+                    <li><strong>Arrow Keys:</strong> Pan camera</li>
+                    <li><strong>W/S:</strong> Move forward/backward</li>
+                </ul>
+            </div>
+            
+            <div class="demo-container">
+                <canvas id="demo1Canvas"></canvas>
+                <div class="controls">
+                    <div class="control-group">
+                        <button onclick="setProjection1('perspective')">Perspective Projection</button>
+                        <button onclick="setProjection1('orthographic')">Orthographic Projection</button>
+                        <button onclick="resetCamera1()">Reset Camera</button>
+                    </div>
+                    <div class="control-group">
+                        <button onclick="toggleGrid1()">Toggle Grid</button>
+                        <button onclick="toggleAxes1()">Toggle Axes</button>
+                        <button onclick="toggleAnimation1()">Toggle Animation</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>Observe:</strong> In perspective mode, the cubes further from the camera appear smaller (foreshortening). 
+                In orthographic mode, all cubes maintain the same size regardless of distance. The grid lines converge to vanishing points in perspective but remain parallel in orthographic.
+            </div>
+        </div>
+
+        <!-- Demo 2: FOV and Depth Range -->
+        <div class="section">
+            <h2>5. Demo 2: Field of View and Depth Range Effects</h2>
+            
+            <div class="math-display">
+                <p><strong>Field of View (FOV):</strong> The angular extent of the observable world.</p>
+                \[\text{FOV}_y = 2 \arctan\left(\frac{h/2}{N}\right)\]
+                <p>Smaller FOV = telephoto lens (zoomed in), Larger FOV = wide-angle lens</p>
+                
+                <p><strong>Depth Range [N, F]:</strong> Defines the near and far clipping planes.</p>
+                <ul>
+                    <li>Objects closer than N are clipped</li>
+                    <li>Objects farther than F are clipped</li>
+                    <li>Depth precision is non-linear: more precision near N, less near F</li>
+                </ul>
+            </div>
+            
+            <div class="demo-container">
+                <canvas id="demo2Canvas"></canvas>
+                <div class="controls">
+                    <div class="control-group">
+                        <label>Field of View: <span class="slider-value" id="fovValue">45°</span></label>
+                        <input type="range" id="fovSlider" min="10" max="120" value="45" oninput="updateFOV(this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Near Plane: <span class="slider-value" id="nearValue">1.0</span></label>
+                        <input type="range" id="nearSlider" min="1" max="100" value="10" oninput="updateNear(this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Far Plane: <span class="slider-value" id="farValue">100.0</span></label>
+                        <input type="range" id="farSlider" min="20" max="400" value="200" oninput="updateFar(this.value)">
+                    </div>
+                    <div class="control-group">
+                        <button onclick="resetCamera2()">Reset Camera</button>
+                        <button onclick="toggleFrustum()">Toggle Frustum Visualization</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <strong>Depth Buffer Precision:</strong> Having a very small near plane or very large far plane reduces depth buffer precision, 
+                which can cause "z-fighting" artifacts. The ratio F/N determines precision distribution.
+            </div>
+        </div>
+
+        <!-- Demo 3: Clipping Plane Slicer -->
+        <div class="section">
+            <h2>6. Demo 3: Clipping Plane Slicer</h2>
+            
+            <p>Visualize how the view frustum clips geometry. This demo shows the 6 clipping planes of the canonical view volume (CVV).</p>
+            
+            <div class="math-display">
+                <p><strong>Canonical View Volume (after projection):</strong></p>
+                <p>All vertices are transformed to Normalized Device Coordinates (NDC) where:</p>
+                \[-1 \leq x_{\text{ndc}} \leq 1\]
+                \[-1 \leq y_{\text{ndc}} \leq 1\]
+                \[-1 \leq z_{\text{ndc}} \leq 1\]
+                <p>Any vertex outside this cube is clipped.</p>
+            </div>
+            
+            <div class="demo-container">
+                <canvas id="demo3Canvas"></canvas>
+                <div class="controls">
+                    <div class="control-group">
+                        <label>Clip Near: <span class="slider-value" id="clipNearValue">-1.0</span></label>
+                        <input type="range" id="clipNearSlider" min="-100" max="100" value="-100" oninput="updateClipNear(this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Clip Far: <span class="slider-value" id="clipFarValue">1.0</span></label>
+                        <input type="range" id="clipFarSlider" min="-100" max="100" value="100" oninput="updateClipFar(this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Clip Left: <span class="slider-value" id="clipLeftValue">-1.0</span></label>
+                        <input type="range" id="clipLeftSlider" min="-100" max="0" value="-100" oninput="updateClipLeft(this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Clip Right: <span class="slider-value" id="clipRightValue">1.0</span></label>
+                        <input type="range" id="clipRightSlider" min="0" max="100" value="100" oninput="updateClipRight(this.value)">
+                    </div>
+                    <div class="control-group">
+                        <button onclick="resetClipping()">Reset Clipping</button>
+                        <button onclick="toggleWireframe()">Toggle Wireframe</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>Clipping in Action:</strong> Move the sliders to see how geometry is clipped against each plane of the view volume. 
+                This is exactly what the GPU does automatically, but here you can control it manually to understand the process.
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="section">
+            <h2>7. Summary</h2>
+            
+            <table>
+                <tr>
+                    <th>Concept</th>
+                    <th>Key Points</th>
+                </tr>
+                <tr>
+                    <td><strong>View Transform</strong></td>
+                    <td>Converts world coordinates to camera coordinates using eye, look-at, and up vector</td>
+                </tr>
+                <tr>
+                    <td><strong>Projection Matrix</strong></td>
+                    <td>Transforms camera coordinates to clip space; encodes FOV, aspect ratio, near/far planes</td>
+                </tr>
+                <tr>
+                    <td><strong>Perspective Division</strong></td>
+                    <td>Dividing by w' component creates foreshortening effect; \(w' = -z\) for perspective</td>
+                </tr>
+                <tr>
+                    <td><strong>NDC Space</strong></td>
+                    <td>Normalized Device Coordinates: [-1,1] cube where clipping occurs</td>
+                </tr>
+                <tr>
+                    <td><strong>Depth Buffer</strong></td>
+                    <td>Stores pseudo-depth (z') for hidden surface removal; non-linear distribution</td>
+                </tr>
+                <tr>
+                    <td><strong>Perspective vs Ortho</strong></td>
+                    <td>Perspective: realistic, with foreshortening; Orthographic: preserves sizes and parallels</td>
+                </tr>
+            </table>
+
+            <div class="info-box">
+                <strong>The Complete Pipeline:</strong>
+                <p>Vertex → Model Matrix → View Matrix → Projection Matrix → <strong>Clip Space (x,y,z,w)</strong> → 
+                Perspective Division → <strong>NDC Space</strong> → Viewport Transform → <strong>Screen Space</strong></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Utility functions
+        const { mat4, vec3 } = glMatrix;
+
+        // Vertex shader for all demos
+        const vertexShaderSource = `
+            attribute vec3 aPosition;
+            attribute vec3 aColor;
+            
+            uniform mat4 uModelMatrix;
+            uniform mat4 uViewMatrix;
+            uniform mat4 uProjectionMatrix;
+            
+            varying vec3 vColor;
+            varying vec3 vPosition;
+            
+            void main() {
+                vec4 worldPos = uModelMatrix * vec4(aPosition, 1.0);
+                vec4 viewPos = uViewMatrix * worldPos;
+                gl_Position = uProjectionMatrix * viewPos;
+                vColor = aColor;
+                vPosition = worldPos.xyz;
+            }
+        `;
+
+        // Fragment shader
+        const fragmentShaderSource = `
+            precision mediump float;
+            
+            varying vec3 vColor;
+            varying vec3 vPosition;
+            
+            uniform bool uUseDepthColor;
+            uniform float uNear;
+            uniform float uFar;
+            
+            void main() {
+                if (uUseDepthColor) {
+                    float depth = length(vPosition);
+                    float normalized = (depth - uNear) / (uFar - uNear);
+                    gl_FragColor = vec4(vec3(1.0 - normalized), 1.0);
+                } else {
+                    gl_FragColor = vec4(vColor, 1.0);
+                }
+            }
+        `;
+
+        // Initialize WebGL context
+        function initGL(canvas) {
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) {
+                alert('WebGL not supported');
+                return null;
+            }
+            return gl;
+        }
+
+        // Create shader
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        // Create program
+        function createProgram(gl, vertexShader, fragmentShader) {
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+            
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                console.error('Program link error:', gl.getProgramInfoLog(program));
+                return null;
+            }
+            return program;
+        }
+
+        // Create cube geometry
+        function createCube() {
+            const positions = [
+                // Front face
+                -1, -1,  1,  1, -1,  1,  1,  1,  1, -1,  1,  1,
+                // Back face
+                -1, -1, -1, -1,  1, -1,  1,  1, -1,  1, -1, -1,
+                // Top face
+                -1,  1, -1, -1,  1,  1,  1,  1,  1,  1,  1, -1,
+                // Bottom face
+                -1, -1, -1,  1, -1, -1,  1, -1,  1, -1, -1,  1,
+                // Right face
+                 1, -1, -1,  1,  1, -1,  1,  1,  1,  1, -1,  1,
+                // Left face
+                -1, -1, -1, -1, -1,  1, -1,  1,  1, -1,  1, -1
+            ];
+
+            const colors = [
+                1, 0, 0,  1, 0, 0,  1, 0, 0,  1, 0, 0, // Front - Red
+                0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0, // Back - Green
+                0, 0, 1,  0, 0, 1,  0, 0, 1,  0, 0, 1, // Top - Blue
+                1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0, // Bottom - Yellow
+                1, 0, 1,  1, 0, 1,  1, 0, 1,  1, 0, 1, // Right - Magenta
+                0, 1, 1,  0, 1, 1,  0, 1, 1,  0, 1, 1  // Left - Cyan
+            ];
+
+            const indices = [
+                0,  1,  2,   0,  2,  3,  // front
+                4,  5,  6,   4,  6,  7,  // back
+                8,  9,  10,  8,  10, 11, // top
+                12, 13, 14,  12, 14, 15, // bottom
+                16, 17, 18,  16, 18, 19, // right
+                20, 21, 22,  20, 22, 23  // left
+            ];
+
+            return { positions, colors, indices };
+        }
+
+        // Camera class
+        class Camera {
+            constructor() {
+                this.position = vec3.fromValues(0, 5, 10);
+                this.target = vec3.fromValues(0, 0, 0);
+                this.up = vec3.fromValues(0, 1, 0);
+                this.fov = 45;
+                this.near = 0.1;
+                this.far = 100;
+                this.aspect = 1;
+                this.isPerspective = true;
+                
+                // Mouse control
+                this.rotation = { x: 0, y: 0 };
+                this.distance = 15;
+            }
+
+            getViewMatrix() {
+                const view = mat4.create();
+                mat4.lookAt(view, this.position, this.target, this.up);
+                return view;
+            }
+
+            getProjectionMatrix() {
+                const proj = mat4.create();
+                if (this.isPerspective) {
+                    mat4.perspective(proj, this.fov * Math.PI / 180, this.aspect, this.near, this.far);
+                } else {
+                    const size = 10;
+                    mat4.ortho(proj, -size * this.aspect, size * this.aspect, -size, size, this.near, this.far);
+                }
+                return proj;
+            }
+
+            updateFromRotation() {
+                const x = this.distance * Math.sin(this.rotation.y) * Math.cos(this.rotation.x);
+                const y = this.distance * Math.sin(this.rotation.x);
+                const z = this.distance * Math.cos(this.rotation.y) * Math.cos(this.rotation.x);
+                this.position = vec3.fromValues(x, y, z);
+            }
+        }
+
+        // Demo 1: Perspective vs Orthographic
+        let demo1 = {
+            canvas: null,
+            gl: null,
+            program: null,
+            camera: null,
+            animating: true,
+            time: 0,
+            showGrid: true,
+            showAxes: true,
+            mouseDown: false,
+            lastMouseX: 0,
+            lastMouseY: 0
+        };
+
+        function initDemo1() {
+            demo1.canvas = document.getElementById('demo1Canvas');
+            demo1.gl = initGL(demo1.canvas);
+            if (!demo1.gl) return;
+
+            const gl = demo1.gl;
+            
+            // Set canvas size
+            demo1.canvas.width = 800;
+            demo1.canvas.height = 600;
+            gl.viewport(0, 0, 800, 600);
+            
+            // Create shaders and program
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+            demo1.program = createProgram(gl, vertexShader, fragmentShader);
+            
+            // Initialize camera
+            demo1.camera = new Camera();
+            demo1.camera.aspect = 800 / 600;
+            demo1.camera.rotation.x = 0.3;
+            demo1.camera.rotation.y = 0.5;
+            demo1.camera.updateFromRotation();
+            
+            // Create cube buffers
+            const cube = createCube();
+            demo1.positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo1.positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cube.positions), gl.STATIC_DRAW);
+            
+            demo1.colorBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo1.colorBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cube.colors), gl.STATIC_DRAW);
+            
+            demo1.indexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, demo1.indexBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cube.indices), gl.STATIC_DRAW);
+            
+            // Mouse controls
+            demo1.canvas.addEventListener('mousedown', (e) => {
+                demo1.mouseDown = true;
+                demo1.lastMouseX = e.clientX;
+                demo1.lastMouseY = e.clientY;
+            });
+            
+            demo1.canvas.addEventListener('mouseup', () => {
+                demo1.mouseDown = false;
+            });
+            
+            demo1.canvas.addEventListener('mousemove', (e) => {
+                if (!demo1.mouseDown) return;
+                
+                const deltaX = e.clientX - demo1.lastMouseX;
+                const deltaY = e.clientY - demo1.lastMouseY;
+                
+                demo1.camera.rotation.y += deltaX * 0.01;
+                demo1.camera.rotation.x += deltaY * 0.01;
+                demo1.camera.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, demo1.camera.rotation.x));
+                
+                demo1.camera.updateFromRotation();
+                
+                demo1.lastMouseX = e.clientX;
+                demo1.lastMouseY = e.clientY;
+            });
+            
+            demo1.canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                demo1.camera.distance += e.deltaY * 0.01;
+                demo1.camera.distance = Math.max(5, Math.min(50, demo1.camera.distance));
+                demo1.camera.updateFromRotation();
+            });
+            
+            // Keyboard controls
+            window.addEventListener('keydown', (e) => {
+                const speed = 0.5;
+                switch(e.key) {
+                    case 'ArrowUp':
+                        demo1.camera.target[1] += speed;
+                        break;
+                    case 'ArrowDown':
+                        demo1.camera.target[1] -= speed;
+                        break;
+                    case 'ArrowLeft':
+                        demo1.camera.target[0] -= speed;
+                        break;
+                    case 'ArrowRight':
+                        demo1.camera.target[0] += speed;
+                        break;
+                    case 'w':
+                    case 'W':
+                        demo1.camera.distance -= speed;
+                        demo1.camera.updateFromRotation();
+                        break;
+                    case 's':
+                    case 'S':
+                        demo1.camera.distance += speed;
+                        demo1.camera.updateFromRotation();
+                        break;
+                }
+            });
+            
+            renderDemo1();
+        }
+
+        function renderDemo1() {
+            const gl = demo1.gl;
+            
+            gl.clearColor(0.1, 0.1, 0.15, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.enable(gl.DEPTH_TEST);
+            
+            gl.useProgram(demo1.program);
+            
+            // Get uniform locations
+            const uModelMatrix = gl.getUniformLocation(demo1.program, 'uModelMatrix');
+            const uViewMatrix = gl.getUniformLocation(demo1.program, 'uViewMatrix');
+            const uProjectionMatrix = gl.getUniformLocation(demo1.program, 'uProjectionMatrix');
+            const uUseDepthColor = gl.getUniformLocation(demo1.program, 'uUseDepthColor');
+            
+            // Set view and projection matrices
+            const viewMatrix = demo1.camera.getViewMatrix();
+            const projectionMatrix = demo1.camera.getProjectionMatrix();
+            
+            gl.uniformMatrix4fv(uViewMatrix, false, viewMatrix);
+            gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix);
+            gl.uniform1i(uUseDepthColor, 0);
+            
+            // Bind buffers
+            const aPosition = gl.getAttribLocation(demo1.program, 'aPosition');
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo1.positionBuffer);
+            gl.enableVertexAttribArray(aPosition);
+            gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+            
+            const aColor = gl.getAttribLocation(demo1.program, 'aColor');
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo1.colorBuffer);
+            gl.enableVertexAttribArray(aColor);
+            gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0);
+            
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, demo1.indexBuffer);
+            
+            // Draw multiple cubes at different distances
+            for (let z = -20; z <= 20; z += 5) {
+                for (let x = -10; x <= 10; x += 5) {
+                    const modelMatrix = mat4.create();
+                    mat4.translate(modelMatrix, modelMatrix, [x, 0, z]);
+                    
+                    if (demo1.animating) {
+                        mat4.rotateY(modelMatrix, modelMatrix, demo1.time + x * 0.1 + z * 0.1);
+                        mat4.rotateX(modelMatrix, modelMatrix, demo1.time * 0.7);
+                    }
+                    
+                    mat4.scale(modelMatrix, modelMatrix, [0.8, 0.8, 0.8]);
+                    
+                    gl.uniformMatrix4fv(uModelMatrix, false, modelMatrix);
+                    gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+                }
+            }
+            
+            // Draw grid if enabled
+            if (demo1.showGrid) {
+                drawGrid(gl, demo1.program, viewMatrix, projectionMatrix);
+            }
+            
+            // Draw axes if enabled
+            if (demo1.showAxes) {
+                drawAxes(gl, demo1.program, viewMatrix, projectionMatrix);
+            }
+            
+            if (demo1.animating) {
+                demo1.time += 0.01;
+            }
+            
+            requestAnimationFrame(renderDemo1);
+        }
+
+        function drawGrid(gl, program, viewMatrix, projectionMatrix) {
+            const gridLines = [];
+            const gridColors = [];
+            const size = 50;
+            const step = 5;
+            
+            for (let i = -size; i <= size; i += step) {
+                // Lines parallel to X axis
+                gridLines.push(i, 0, -size, i, 0, size);
+                gridColors.push(0.3, 0.3, 0.3, 0.3, 0.3, 0.3);
+                
+                // Lines parallel to Z axis
+                gridLines.push(-size, 0, i, size, 0, i);
+                gridColors.push(0.3, 0.3, 0.3, 0.3, 0.3, 0.3);
+            }
+            
+            const gridBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, gridBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(gridLines), gl.STATIC_DRAW);
+            
+            const gridColorBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, gridColorBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(gridColors), gl.STATIC_DRAW);
+            
+            const aPosition = gl.getAttribLocation(program, 'aPosition');
+            gl.bindBuffer(gl.ARRAY_BUFFER, gridBuffer);
+            gl.enableVertexAttribArray(aPosition);
+            gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+            
+            const aColor = gl.getAttribLocation(program, 'aColor');
+            gl.bindBuffer(gl.ARRAY_BUFFER, gridColorBuffer);
+            gl.enableVertexAttribArray(aColor);
+            gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0);
+            
+            const modelMatrix = mat4.create();
+            const uModelMatrix = gl.getUniformLocation(program, 'uModelMatrix');
+            gl.uniformMatrix4fv(uModelMatrix, false, modelMatrix);
+            
+            gl.drawArrays(gl.LINES, 0, gridLines.length / 3);
+        }
+
+        function drawAxes(gl, program, viewMatrix, projectionMatrix) {
+            const axesLines = [
+                0, 0, 0,  5, 0, 0,  // X axis
+                0, 0, 0,  0, 5, 0,  // Y axis
+                0, 0, 0,  0, 0, 5   // Z axis
+            ];
+            
+            const axesColors = [
+                1, 0, 0,  1, 0, 0,  // Red
+                0, 1, 0,  0, 1, 0,  // Green
+                0, 0, 1,  0, 0, 1   // Blue
+            ];
+            
+            const axesBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, axesBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(axesLines), gl.STATIC_DRAW);
+            
+            const axesColorBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, axesColorBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(axesColors), gl.STATIC_DRAW);
+            
+            const aPosition = gl.getAttribLocation(program, 'aPosition');
+            gl.bindBuffer(gl.ARRAY_BUFFER, axesBuffer);
+            gl.enableVertexAttribArray(aPosition);
+            gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+            
+            const aColor = gl.getAttribLocation(program, 'aColor');
+            gl.bindBuffer(gl.ARRAY_BUFFER, axesColorBuffer);
+            gl.enableVertexAttribArray(aColor);
+            gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0);
+            
+            const modelMatrix = mat4.create();
+            const uModelMatrix = gl.getUniformLocation(program, 'uModelMatrix');
+            gl.uniformMatrix4fv(uModelMatrix, false, modelMatrix);
+            
+            gl.lineWidth(3);
+            gl.drawArrays(gl.LINES, 0, 6);
+        }
+
+        // Control functions for Demo 1
+        function setProjection1(type) {
+            demo1.camera.isPerspective = (type === 'perspective');
+        }
+
+        function resetCamera1() {
+            demo1.camera.rotation.x = 0.3;
+            demo1.camera.rotation.y = 0.5;
+            demo1.camera.distance = 15;
+            demo1.camera.target = vec3.fromValues(0, 0, 0);
+            demo1.camera.updateFromRotation();
+        }
+
+        function toggleGrid1() {
+            demo1.showGrid = !demo1.showGrid;
+        }
+
+        function toggleAxes1() {
+            demo1.showAxes = !demo1.showAxes;
+        }
+
+        function toggleAnimation1() {
+            demo1.animating = !demo1.animating;
+        }
+
+        // Demo 2: FOV and Depth Range
+        let demo2 = {
+            canvas: null,
+            gl: null,
+            program: null,
+            camera: null,
+            showFrustum: false,
+            mouseDown: false,
+            lastMouseX: 0,
+            lastMouseY: 0
+        };
+
+        function initDemo2() {
+            demo2.canvas = document.getElementById('demo2Canvas');
+            demo2.gl = initGL(demo2.canvas);
+            if (!demo2.gl) return;
+
+            const gl = demo2.gl;
+            
+            demo2.canvas.width = 800;
+            demo2.canvas.height = 600;
+            gl.viewport(0, 0, 800, 600);
+            
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+            demo2.program = createProgram(gl, vertexShader, fragmentShader);
+            
+            demo2.camera = new Camera();
+            demo2.camera.aspect = 800 / 600;
+            demo2.camera.rotation.x = 0.2;
+            demo2.camera.rotation.y = 0.3;
+            demo2.camera.distance = 25;
+            demo2.camera.near = 1.0;
+            demo2.camera.far = 100;
+            demo2.camera.updateFromRotation();
+            
+            const cube = createCube();
+            demo2.positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo2.positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cube.positions), gl.STATIC_DRAW);
+            
+            demo2.colorBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo2.colorBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cube.colors), gl.STATIC_DRAW);
+            
+            demo2.indexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, demo2.indexBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cube.indices), gl.STATIC_DRAW);
+            
+            // Mouse controls
+            demo2.canvas.addEventListener('mousedown', (e) => {
+                demo2.mouseDown = true;
+                demo2.lastMouseX = e.clientX;
+                demo2.lastMouseY = e.clientY;
+            });
+            
+            demo2.canvas.addEventListener('mouseup', () => {
+                demo2.mouseDown = false;
+            });
+            
+            demo2.canvas.addEventListener('mousemove', (e) => {
+                if (!demo2.mouseDown) return;
+                
+                const deltaX = e.clientX - demo2.lastMouseX;
+                const deltaY = e.clientY - demo2.lastMouseY;
+                
+                demo2.camera.rotation.y += deltaX * 0.01;
+                demo2.camera.rotation.x += deltaY * 0.01;
+                demo2.camera.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, demo2.camera.rotation.x));
+                
+                demo2.camera.updateFromRotation();
+                
+                demo2.lastMouseX = e.clientX;
+                demo2.lastMouseY = e.clientY;
+            });
+            
+            demo2.canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                demo2.camera.distance += e.deltaY * 0.01;
+                demo2.camera.distance = Math.max(5, Math.min(50, demo2.camera.distance));
+                demo2.camera.updateFromRotation();
+            });
+            
+            renderDemo2();
+        }
+
+        function renderDemo2() {
+            const gl = demo2.gl;
+            
+            gl.clearColor(0.1, 0.1, 0.15, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.enable(gl.DEPTH_TEST);
+            
+            gl.useProgram(demo2.program);
+            
+            const uModelMatrix = gl.getUniformLocation(demo2.program, 'uModelMatrix');
+            const uViewMatrix = gl.getUniformLocation(demo2.program, 'uViewMatrix');
+            const uProjectionMatrix = gl.getUniformLocation(demo2.program, 'uProjectionMatrix');
+            const uUseDepthColor = gl.getUniformLocation(demo2.program, 'uUseDepthColor');
+            const uNear = gl.getUniformLocation(demo2.program, 'uNear');
+            const uFar = gl.getUniformLocation(demo2.program, 'uFar');
+            
+            const viewMatrix = demo2.camera.getViewMatrix();
+            const projectionMatrix = demo2.camera.getProjectionMatrix();
+            
+            gl.uniformMatrix4fv(uViewMatrix, false, viewMatrix);
+            gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix);
+            gl.uniform1i(uUseDepthColor, 1);
+            gl.uniform1f(uNear, demo2.camera.near);
+            gl.uniform1f(uFar, demo2.camera.far);
+            
+            const aPosition = gl.getAttribLocation(demo2.program, 'aPosition');
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo2.positionBuffer);
+            gl.enableVertexAttribArray(aPosition);
+            gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+            
+            const aColor = gl.getAttribLocation(demo2.program, 'aColor');
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo2.colorBuffer);
+            gl.enableVertexAttribArray(aColor);
+            gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0);
+            
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, demo2.indexBuffer);
+            
+            // Draw cubes along Z axis to show depth with better spacing
+            for (let i = 0; i < 20; i++) {
+                const z = -2 - (i * 4); // Start at -2, space by 4 units
+                
+                const modelMatrix = mat4.create();
+                mat4.translate(modelMatrix, modelMatrix, [0, 0, z]);
+                
+                // Scale cubes slightly smaller in distance for better visibility
+                const scale = 1.2;
+                mat4.scale(modelMatrix, modelMatrix, [scale, scale, scale]);
+                
+                gl.uniformMatrix4fv(uModelMatrix, false, modelMatrix);
+                gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+            }
+            
+            // Draw grid and axes for reference
+            gl.uniform1i(uUseDepthColor, 0);
+            drawGrid(gl, demo2.program, viewMatrix, projectionMatrix);
+            drawAxes(gl, demo2.program, viewMatrix, projectionMatrix);
+            
+            requestAnimationFrame(renderDemo2);
+        }
+
+        function updateFOV(value) {
+            demo2.camera.fov = parseFloat(value);
+            document.getElementById('fovValue').textContent = value + '°';
+        }
+
+        function updateNear(value) {
+            demo2.camera.near = parseFloat(value) / 10;
+            document.getElementById('nearValue').textContent = (parseFloat(value) / 10).toFixed(1);
+        }
+
+        function updateFar(value) {
+            demo2.camera.far = parseFloat(value) / 2;
+            document.getElementById('farValue').textContent = (parseFloat(value) / 2).toFixed(1);
+        }
+
+        function resetCamera2() {
+            demo2.camera.rotation.x = 0.2;
+            demo2.camera.rotation.y = 0.3;
+            demo2.camera.distance = 25;
+            demo2.camera.fov = 45;
+            demo2.camera.near = 1.0;
+            demo2.camera.far = 100;
+            demo2.camera.updateFromRotation();
+            
+            document.getElementById('fovSlider').value = 45;
+            document.getElementById('fovValue').textContent = '45°';
+            document.getElementById('nearSlider').value = 10;
+            document.getElementById('nearValue').textContent = '1.0';
+            document.getElementById('farSlider').value = 200;
+            document.getElementById('farValue').textContent = '100.0';
+        }
+
+        function toggleFrustum() {
+            demo2.showFrustum = !demo2.showFrustum;
+        }
+
+        // Demo 3: Clipping Plane Slicer
+        let demo3 = {
+            canvas: null,
+            gl: null,
+            program: null,
+            camera: null,
+            clipNear: -1.0,
+            clipFar: 1.0,
+            clipLeft: -1.0,
+            clipRight: 1.0,
+            wireframe: false,
+            mouseDown: false,
+            lastMouseX: 0,
+            lastMouseY: 0
+        };
+
+        // Simple shader for clipping demo
+        const clipVertexShader = `
+            attribute vec3 aPosition;
+            attribute vec3 aColor;
+            
+            uniform mat4 uModelMatrix;
+            uniform mat4 uViewMatrix;
+            uniform mat4 uProjectionMatrix;
+            uniform float uClipNear;
+            uniform float uClipFar;
+            uniform float uClipLeft;
+            uniform float uClipRight;
+            
+            varying vec3 vColor;
+            varying vec4 vClipPos;
+            
+            void main() {
+                vec4 worldPos = uModelMatrix * vec4(aPosition, 1.0);
+                vec4 viewPos = uViewMatrix * worldPos;
+                vec4 clipPos = uProjectionMatrix * viewPos;
+                
+                gl_Position = clipPos;
+                vColor = aColor;
+                vClipPos = clipPos / clipPos.w;  // NDC coordinates
+            }
+        `;
+
+        const clipFragmentShader = `
+            precision mediump float;
+            
+            varying vec3 vColor;
+            varying vec4 vClipPos;
+            
+            uniform float uClipNear;
+            uniform float uClipFar;
+            uniform float uClipLeft;
+            uniform float uClipRight;
+            
+            void main() {
+                // Manual clipping in fragment shader for visualization
+                if (vClipPos.z < uClipNear || vClipPos.z > uClipFar ||
+                    vClipPos.x < uClipLeft || vClipPos.x > uClipRight) {
+                    discard;
+                }
+                
+                // Color based on which clipping planes are close
+                vec3 color = vColor;
+                if (abs(vClipPos.z - uClipNear) < 0.1) color = mix(color, vec3(1.0, 1.0, 0.0), 0.5);
+                if (abs(vClipPos.z - uClipFar) < 0.1) color = mix(color, vec3(0.0, 1.0, 1.0), 0.5);
+                
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+
+        function initDemo3() {
+            demo3.canvas = document.getElementById('demo3Canvas');
+            demo3.gl = initGL(demo3.canvas);
+            if (!demo3.gl) return;
+
+            const gl = demo3.gl;
+            
+            demo3.canvas.width = 800;
+            demo3.canvas.height = 600;
+            gl.viewport(0, 0, 800, 600);
+            
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, clipVertexShader);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, clipFragmentShader);
+            demo3.program = createProgram(gl, vertexShader, fragmentShader);
+            
+            demo3.camera = new Camera();
+            demo3.camera.aspect = 800 / 600;
+            demo3.camera.rotation.x = 0.3;
+            demo3.camera.rotation.y = 0.5;
+            demo3.camera.distance = 20;
+            demo3.camera.updateFromRotation();
+            
+            const cube = createCube();
+            demo3.positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo3.positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cube.positions), gl.STATIC_DRAW);
+            
+            demo3.colorBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo3.colorBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cube.colors), gl.STATIC_DRAW);
+            
+            demo3.indexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, demo3.indexBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cube.indices), gl.STATIC_DRAW);
+            
+            // Mouse controls
+            demo3.canvas.addEventListener('mousedown', (e) => {
+                demo3.mouseDown = true;
+                demo3.lastMouseX = e.clientX;
+                demo3.lastMouseY = e.clientY;
+            });
+            
+            demo3.canvas.addEventListener('mouseup', () => {
+                demo3.mouseDown = false;
+            });
+            
+            demo3.canvas.addEventListener('mousemove', (e) => {
+                if (!demo3.mouseDown) return;
+                
+                const deltaX = e.clientX - demo3.lastMouseX;
+                const deltaY = e.clientY - demo3.lastMouseY;
+                
+                demo3.camera.rotation.y += deltaX * 0.01;
+                demo3.camera.rotation.x += deltaY * 0.01;
+                demo3.camera.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, demo3.camera.rotation.x));
+                
+                demo3.camera.updateFromRotation();
+                
+                demo3.lastMouseX = e.clientX;
+                demo3.lastMouseY = e.clientY;
+            });
+            
+            demo3.canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                demo3.camera.distance += e.deltaY * 0.01;
+                demo3.camera.distance = Math.max(5, Math.min(50, demo3.camera.distance));
+                demo3.camera.updateFromRotation();
+            });
+            
+            renderDemo3();
+        }
+
+        function renderDemo3() {
+            const gl = demo3.gl;
+            
+            gl.clearColor(0.1, 0.1, 0.15, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.enable(gl.DEPTH_TEST);
+            
+            gl.useProgram(demo3.program);
+            
+            const uModelMatrix = gl.getUniformLocation(demo3.program, 'uModelMatrix');
+            const uViewMatrix = gl.getUniformLocation(demo3.program, 'uViewMatrix');
+            const uProjectionMatrix = gl.getUniformLocation(demo3.program, 'uProjectionMatrix');
+            const uClipNear = gl.getUniformLocation(demo3.program, 'uClipNear');
+            const uClipFar = gl.getUniformLocation(demo3.program, 'uClipFar');
+            const uClipLeft = gl.getUniformLocation(demo3.program, 'uClipLeft');
+            const uClipRight = gl.getUniformLocation(demo3.program, 'uClipRight');
+            
+            const viewMatrix = demo3.camera.getViewMatrix();
+            const projectionMatrix = demo3.camera.getProjectionMatrix();
+            
+            gl.uniformMatrix4fv(uViewMatrix, false, viewMatrix);
+            gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix);
+            gl.uniform1f(uClipNear, demo3.clipNear);
+            gl.uniform1f(uClipFar, demo3.clipFar);
+            gl.uniform1f(uClipLeft, demo3.clipLeft);
+            gl.uniform1f(uClipRight, demo3.clipRight);
+            
+            const aPosition = gl.getAttribLocation(demo3.program, 'aPosition');
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo3.positionBuffer);
+            gl.enableVertexAttribArray(aPosition);
+            gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+            
+            const aColor = gl.getAttribLocation(demo3.program, 'aColor');
+            gl.bindBuffer(gl.ARRAY_BUFFER, demo3.colorBuffer);
+            gl.enableVertexAttribArray(aColor);
+            gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0);
+            
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, demo3.indexBuffer);
+            
+            // Draw sphere of cubes
+            const radius = 10;
+            const numCubes = 8;
+            for (let i = 0; i < numCubes; i++) {
+                for (let j = 0; j < numCubes; j++) {
+                    const theta = (i / numCubes) * Math.PI * 2;
+                    const phi = (j / numCubes) * Math.PI;
+                    
+                    const x = radius * Math.sin(phi) * Math.cos(theta);
+                    const y = radius * Math.sin(phi) * Math.sin(theta);
+                    const z = radius * Math.cos(phi);
+                    
+                    const modelMatrix = mat4.create();
+                    mat4.translate(modelMatrix, modelMatrix, [x, y, z]);
+                    mat4.scale(modelMatrix, modelMatrix, [0.5, 0.5, 0.5]);
+                    
+                    gl.uniformMatrix4fv(uModelMatrix, false, modelMatrix);
+                    gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+                }
+            }
+            
+            requestAnimationFrame(renderDemo3);
+        }
+
+        function updateClipNear(value) {
+            demo3.clipNear = value / 100;
+            document.getElementById('clipNearValue').textContent = (value / 100).toFixed(2);
+        }
+
+        function updateClipFar(value) {
+            demo3.clipFar = value / 100;
+            document.getElementById('clipFarValue').textContent = (value / 100).toFixed(2);
+        }
+
+        function updateClipLeft(value) {
+            demo3.clipLeft = value / 100;
+            document.getElementById('clipLeftValue').textContent = (value / 100).toFixed(2);
+        }
+
+        function updateClipRight(value) {
+            demo3.clipRight = value / 100;
+            document.getElementById('clipRightValue').textContent = (value / 100).toFixed(2);
+        }
+
+        function resetClipping() {
+            demo3.clipNear = -1.0;
+            demo3.clipFar = 1.0;
+            demo3.clipLeft = -1.0;
+            demo3.clipRight = 1.0;
+            
+            document.getElementById('clipNearSlider').value = -100;
+            document.getElementById('clipNearValue').textContent = '-1.0';
+            document.getElementById('clipFarSlider').value = 100;
+            document.getElementById('clipFarValue').textContent = '1.0';
+            document.getElementById('clipLeftSlider').value = -100;
+            document.getElementById('clipLeftValue').textContent = '-1.0';
+            document.getElementById('clipRightSlider').value = 100;
+            document.getElementById('clipRightValue').textContent = '1.0';
+        }
+
+        function toggleWireframe() {
+            demo3.wireframe = !demo3.wireframe;
+        }
+
+        // Initialize all demos when page loads
+        window.addEventListener('load', () => {
+            initDemo1();
+            initDemo2();
+            initDemo3();
+        });
+    </script>
+</body>
+</html>

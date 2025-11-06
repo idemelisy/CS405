@@ -1,0 +1,64 @@
+CS405 Project 1 — Transformations, Projection, and Curves
+
+Overview
+
+This project builds a minimal 3D WebGL application demonstrating the mathematical foundations of computer graphics: rigid transformations, camera setup, projection, and Bézier curves. Students will implement these operations using JavaScript and WebGL to visualize how geometry moves from model space to screen space.
+
+Learning Objectives
+
+By completing this project, students will:
+1. Implement affine and rigid-body transformations using 4×4 matrices.
+2. Construct a camera coordinate system and apply the view matrix.
+3. Implement perspective projection using a projection matrix.
+4. Generate Bézier curves in 2D and 3D space.
+5. Understand the complete transformation chain: p_clip = P × V × M × p_object.
+6. Develop clean WebGL rendering code that connects mathematics to visualization.
+
+Part A — Rigid Transformations (Week 3–4)
+
+• Implement translation, rotation, and scaling using 4×4 matrices.
+• Allow interactive adjustment of object parameters via UI.
+• Display transformation matrices on screen.
+• Demonstrate order dependence: TRS vs RTS.
+
+Part B — Camera and View Matrix (Week 4)
+
+• Implement a lookAt() function: V = lookAt(eye, target, up).
+• Visualize camera coordinate axes (X=red, Y=green, Z=blue).
+• Enable interactive camera movement around an object.
+• Render the camera frustum to illustrate field of view.
+
+Part C — Perspective Projection (Week 4–5)
+
+• Implement the perspective projection matrix: P = perspective(fov, aspect, near, far).
+• Compare orthographic and perspective projections.
+• Visualize how objects map into clip space and screen space.
+• Allow toggling between camera, clip, and screen space views.
+
+Part D — Bézier Curves (Week 5)
+
+• Implement cubic Bézier curve: B(t)= (1−t)³P₀ + 3(1−t)²tP₁ + 3(1−t)t²P₂ + t³P₃.
+• Visualize control points and the control polygon.
+• Animate an object moving along the Bézier curve.
+• (Optional) Extend to piecewise Bézier or spline curves.
+
+Part E — Integration and Visualization (Week 6)
+
+• Combine transformations, camera, projection, and Bézier elements into a single WebGL scene.
+• Provide controls to toggle projection mode, start/stop animation, and reset.
+• Ensure modular code structure with clear separation of math, rendering, and UI.
+
+Implementation Rules
+
+• Use JavaScript + WebGL only (no external libraries).
+• Column-major matrices consistent with WebGL conventions.
+• Export matrix data in JSON format.
+• Maintain clean code and clear commenting.
+
+Deliverables
+
+1. index.html — main WebGL application.
+2. js/ — separate JavaScript files for math, camera, Bézier, and rendering.
+3. assets/ — optional simple texture or cube model.
+4. report.pdf — 3–4 pages with math, screenshots, and discussion.
+5. (Optional) demo.mp4 — short demonstration video (≤3 min).

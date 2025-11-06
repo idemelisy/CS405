@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS405 Project 1 — Transformations, Projection, Curves</title>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: system-ui, Arial, sans-serif; 
+            background: #0b0b0c; 
+            color: #e8e8ea; 
+        }
+        .wrap { 
+            display: grid; 
+            grid-template-columns: 320px 1fr; 
+            gap: 0; 
+            min-height: 100vh; 
+        }
+        .side { 
+            padding: 16px; 
+            background: #131317; 
+            border-right: 1px solid #22232b; 
+            overflow: auto; 
+        }
+        .main { 
+            position: relative; 
+            display: grid; 
+            grid-template-rows: 1fr auto; 
+        }
+        #glwrap { 
+            position: relative; 
+            background: #0a0a0a; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        #glcanvas { 
+            display: block; 
+            background: #000; 
+        }
+        #curvecanvas { 
+            position: absolute; 
+            inset: 0; 
+            pointer-events: auto; 
+        }
+        .panel { 
+            padding: 10px 14px; 
+            margin: 0 0 12px; 
+            border: 1px solid #262631; 
+            border-radius: 10px; 
+            background: #1a1a21; 
+        }
+        .panel h3 { 
+            margin: 0 0 8px; 
+            font-size: 14px; 
+            color: #aeb0b8; 
+        }
+        .row { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            margin: 6px 0; 
+        }
+        .row label { 
+            width: 84px; 
+            font-size: 12px; 
+            color: #b7b9c4; 
+        }
+        .row input[type=range] { 
+            width: 180px; 
+        }
+        .row input[type=number] { 
+            width: 80px; 
+            background: #111115; 
+            color: #e8e8ea; 
+            border: 1px solid #2a2a33; 
+            border-radius: 6px; 
+            padding: 4px; 
+        }
+        .matrix { 
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; 
+            font-size: 11px; 
+            white-space: pre; 
+            background: #111115; 
+            color: #c0ffb6; 
+            padding: 8px; 
+            border-radius: 8px; 
+            border: 1px solid #2a2a33; 
+            overflow: auto; 
+        }
+        .footer { 
+            padding: 8px 12px; 
+            border-top: 1px solid #22232b; 
+            background: #131317; 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+        }
+        button { 
+            background: #2a2a33; 
+            color: #e8e8ea; 
+            border: 1px solid #3a3a46; 
+            padding: 8px 10px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+        }
+        button:hover { 
+            background: #343442; 
+        }
+        .radio-row { 
+            display: flex; 
+            gap: 10px; 
+            font-size: 12px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="side">
+            <div class="panel">
+                <h3>Model — Translate</h3>
+                <div class="row">
+                    <label>tx</label>
+                    <input id="tx" type="range" min="-3" max="3" step="0.01" value="0">
+                    <input id="txn" type="number" step="0.01" value="0">
+                </div>
+                <div class="row">
+                    <label>ty</label>
+                    <input id="ty" type="range" min="-3" max="3" step="0.01" value="0">
+                    <input id="tyn" type="number" step="0.01" value="0">
+                </div>
+                <div class="row">
+                    <label>tz</label>
+                    <input id="tz" type="range" min="-10" max="10" step="0.01" value="0">
+                    <input id="tzn" type="number" step="0.01" value="0">
+                </div>
+            </div>
+            <div class="panel">
+                <h3>Model — Rotate (deg)</h3>
+                <div class="row">
+                    <label>rx</label>
+                    <input id="rx" type="range" min="-180" max="180" step="1" value="0">
+                    <input id="rxn" type="number" step="1" value="0">
+                </div>
+                <div class="row">
+                    <label>ry</label>
+                    <input id="ry" type="range" min="-180" max="180" step="1" value="0">
+                    <input id="ryn" type="number" step="1" value="0">
+                </div>
+                <div class="row">
+                    <label>rz</label>
+                    <input id="rz" type="range" min="-180" max="180" step="1" value="0">
+                    <input id="rzn" type="number" step="1" value="0">
+                </div>
+            </div>
+            <div class="panel">
+                <h3>Model — Scale</h3>
+                <div class="row">
+                    <label>sx</label>
+                    <input id="sx" type="range" min="0.1" max="3" step="0.01" value="1">
+                    <input id="sxn" type="number" step="0.01" value="1">
+                </div>
+                <div class="row">
+                    <label>sy</label>
+                    <input id="sy" type="range" min="0.1" max="3" step="0.01" value="1">
+                    <input id="syn" type="number" step="0.01" value="1">
+                </div>
+                <div class="row">
+                    <label>sz</label>
+                    <input id="sz" type="range" min="0.1" max="3" step="0.01" value="1">
+                    <input id="szn" type="number" step="0.01" value="1">
+                </div>
+            </div>
+            <div class="panel">
+                <h3>Camera / Projection</h3>
+                <div class="row">
+                    <label>orbit θ</label>
+                    <input id="orbitt" type="range" min="0" max="360" step="1" value="35">
+                    <input id="orbittn" type="number" step="1" value="35">
+                </div>
+                <div class="row">
+                    <label>orbit φ</label>
+                    <input id="orbitp" type="range" min="-89" max="89" step="1" value="20">
+                    <input id="orbitpn" type="number" step="1" value="20">
+                </div>
+                <div class="row">
+                    <label>dist</label>
+                    <input id="camdist" type="range" min="1" max="20" step="0.1" value="6">
+                    <input id="camdistn" type="number" step="0.1" value="6">
+                </div>
+                <div class="row">
+                    <label>FOV</label>
+                    <input id="fov" type="range" min="20" max="100" step="1" value="60">
+                    <input id="fovn" type="number" step="1" value="60">
+                </div>
+                <div class="row">
+                    <label>near</label>
+                    <input id="znear" type="range" min="0.01" max="5" step="0.01" value="0.1">
+                    <input id="znearn" type="number" step="0.01" value="0.1">
+                </div>
+                <div class="row">
+                    <label>far</label>
+                    <input id="zfar" type="range" min="5" max="200" step="1" value="100">
+                    <input id="zfarn" type="number" step="1" value="100">
+                </div>
+                <div class="row radio-row">
+                    <label>Projection</label>
+                    <label>
+                        <input type="radio" name="proj" id="proj-persp" checked> perspective
+                    </label>
+                    <label>
+                        <input type="radio" name="proj" id="proj-ortho"> ortho
+                    </label>
+                </div>
+            </div>
+            <div class="panel">
+                <h3>Matrices</h3>
+                <div class="row">
+                    <button id="exportJson">Export JSON</button>
+                    <button id="reset">Reset</button>
+                </div>
+                <div class="matrix" id="matrices"></div>
+            </div>
+            <div class="panel">
+                <h3>Bézier</h3>
+                <div class="row">
+                    <label>t</label>
+                    <input id="bt" type="range" min="0" max="1" step="0.001" value="0">
+                    <input id="btn" type="number" step="0.001" value="0">
+                </div>
+                <div class="row">
+                    <label>speed</label>
+                    <input id="bspeed" type="range" min="0" max="2" step="0.01" value="0.2">
+                    <input id="bspeedn" type="number" step="0.01" value="0.2">
+                </div>
+                <div class="row">
+                    <button id="bplay">Play</button>
+                    <button id="bpause">Pause</button>
+                    <button id="breset">Reset t</button>
+                </div>
+                <div class="row">
+                    <label>
+                        <input id="battach" type="checkbox"> attach cube to curve (XZ)
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="main">
+            <div id="glwrap">
+                <canvas id="glcanvas" width="800" height="600"></canvas>
+                <canvas id="curvecanvas"></canvas>
+            </div>
+            <div class="footer">
+                <div>CS405 — Project 1. Use the sliders to manipulate transforms, camera, and projection. Drag control points on the overlay to edit the Bézier curve.</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="math.js"></script>
+    <script src="camera.js"></script>
+    <script src="bezier.js"></script>
+    <script src="render.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
+
