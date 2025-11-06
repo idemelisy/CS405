@@ -7,7 +7,7 @@ class Camera {
         this.eyePosition = [0, 5, 10];
         this.targetPosition = [0, 0, 0];
         this.upVector = [0, 1, 0];
-        this.fieldOfView = 45; // degrees
+        this.fieldOfView = 45; 
         this.nearPlane = 0.1;
         this.farPlane = 100;
         this.aspectRatio = 1;
@@ -30,7 +30,7 @@ class Camera {
         const rightVector = normalizeVector(crossProduct(upVector, forwardVector));
         const cameraUpVector = crossProduct(forwardVector, rightVector);
         
-        // Create view matrix (inverse of camera transformation)
+        // Create view matrix 
         return [
             rightVector[0], cameraUpVector[0], forwardVector[0], 0,
             rightVector[1], cameraUpVector[1], forwardVector[1], 0,
@@ -41,12 +41,12 @@ class Camera {
         ];
     }
 
-    // Get current view matrix
+    
     getViewMatrix() {
         return this.createLookAtMatrix(this.eyePosition, this.targetPosition, this.upVector);
     }
 
-    // Get current projection matrix
+    
     getProjectionMatrix() {
         if (this.isUsingPerspectiveProjection) {
             return createPerspectiveProjectionMatrix(
@@ -73,14 +73,14 @@ class Camera {
         this.eyePosition = [x, y, z];
     }
 
-    // Move camera forward/backward
+    
     moveCameraForward(deltaDistance) {
         this.cameraDistance += deltaDistance;
         this.cameraDistance = Math.max(2, Math.min(50, this.cameraDistance));
         this.updateCameraFromRotation();
     }
 
-    // Rotate camera around target
+    
     rotateCameraAroundTarget(deltaX, deltaY) {
         this.cameraRotation.y += deltaX;
         this.cameraRotation.x += deltaY;
@@ -88,18 +88,18 @@ class Camera {
         this.updateCameraFromRotation();
     }
 
-    // Pan camera target
+    
     panCameraTarget(deltaX, deltaY) {
         this.targetPosition[0] += deltaX;
         this.targetPosition[1] += deltaY;
     }
 
-    // Get current camera position
+    
     getPosition() {
         return [this.eyePosition[0], this.eyePosition[1], this.eyePosition[2]];
     }
 
-    // Reset camera to default position
+    
     resetCameraPosition() {
         this.eyePosition = [0, 5, 10];
         this.targetPosition = [0, 0, 0];
@@ -110,18 +110,18 @@ class Camera {
         this.updateCameraFromRotation();
     }
 
-    // Toggle between perspective and orthographic projection
+    
     toggleProjectionType() {
         this.isUsingPerspectiveProjection = !this.isUsingPerspectiveProjection;
         return this.isUsingPerspectiveProjection ? 'perspective' : 'orthographic';
     }
 
-    // Set projection type explicitly
+    
     setProjectionType(projectionType) {
         this.isUsingPerspectiveProjection = (projectionType === 'perspective');
     }
 
-    // Update field of view
+    
     setFieldOfView(fieldOfViewInDegrees) {
         this.fieldOfView = Math.max(10, Math.min(120, fieldOfViewInDegrees));
     }
@@ -132,13 +132,13 @@ class Camera {
         this.farPlane = Math.max(this.nearPlane + 1, farPlane);
     }
 
-    // Set aspect ratio
+    
     setAspectRatio(aspectRatio) {
         this.aspectRatio = aspectRatio;
     }
 }
 
-// Create coordinate axes geometry for visualization
+
 function createCoordinateAxesGeometry() {
     const axesPositions = [
         0, 0, 0,  5, 0, 0,  // X axis - red
@@ -159,7 +159,7 @@ function createCoordinateAxesGeometry() {
     };
 }
 
-// Create grid geometry for ground reference
+
 function createGridGeometry(gridSize, stepSize) {
     const gridLines = [];
     const gridColors = [];
@@ -181,11 +181,11 @@ function createGridGeometry(gridSize, stepSize) {
     };
 }
 
-// Create camera frustum geometry for visualization
+
 function createCameraFrustumGeometry(fieldOfViewInDegrees, aspectRatio, nearPlane, farPlane) {
     const fovRadians = degreesToRadians(fieldOfViewInDegrees);
     
-    // Use actual near and far plane distances but limit far plane for better visibility
+    // Use actual near and far plane distances 
     const near = nearPlane;   
     const far = Math.min(farPlane, nearPlane + 10); // Limit frustum depth to 10 units max     
     
@@ -194,11 +194,11 @@ function createCameraFrustumGeometry(fieldOfViewInDegrees, aspectRatio, nearPlan
     const halfHeightFar = far * Math.tan(fovRadians / 2);
     const halfWidthFar = halfHeightFar * aspectRatio;
     
-    // Create solid frustum surfaces (triangles for filled rendering)
+   
     const frustumVertices = [];
     const frustumColors = [];
     
-    // Camera origin point (this is where the camera sits)
+    //  where the camera sits
     const cameraOrigin = [0, 0, 0];
     
     // Near plane corners (in camera space, looking down -Z axis)
@@ -230,11 +230,11 @@ function createCameraFrustumGeometry(fieldOfViewInDegrees, aspectRatio, nearPlan
     const topColor = [1.0, 0.6, 0.2];     // Orange - top face
     const bottomColor = [0.2, 1.0, 0.6];  // Green - bottom face
     
-    // Near plane (2 triangles) - semi-transparent yellow
+    // Near plane (2 triangles)  yellow
     addTriangle(nearCorners[0], nearCorners[1], nearCorners[2], [1.0, 1.0, 0.0]);
     addTriangle(nearCorners[0], nearCorners[2], nearCorners[3], [1.0, 1.0, 0.0]);
     
-    // Far plane (2 triangles) - semi-transparent blue
+    // Far plane (2 triangles)  blue
     addTriangle(farCorners[0], farCorners[2], farCorners[1], [0.0, 0.8, 1.0]);
     addTriangle(farCorners[0], farCorners[3], farCorners[2], [0.0, 0.8, 1.0]);
     
@@ -265,7 +265,7 @@ function createCameraFrustumGeometry(fieldOfViewInDegrees, aspectRatio, nearPlan
     };
 }
 
-// Create camera indicator geometry (small cube to show camera position)
+// Create camera indicator geometry 
 function createCameraIndicatorGeometry() {
     const size = 0.2; // Smaller size for better visibility
     const cameraVertices = [];
@@ -287,8 +287,8 @@ function createCameraIndicatorGeometry() {
         [1, 5, 6], [1, 6, 2]  // Right
     ];
     
-    // Camera color (bright magenta/pink)
-    const cameraColor = [1.0, 0.0, 1.0]; // Magenta - easy to spot
+    // Camera color 
+    const cameraColor = [1.0, 0.0, 1.0]; // Magenta 
     
     // Add triangles for camera cube
     faces.forEach(face => {

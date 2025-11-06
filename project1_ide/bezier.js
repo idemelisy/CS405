@@ -150,7 +150,7 @@ class BezierCurve {
         }
     }
 
-    // Start/stop animation
+    
     startAnimation() {
         this.isAnimating = true;
         this.animationParameter = 0.0;
@@ -166,13 +166,13 @@ class BezierCurve {
         return this.isAnimating;
     }
 
-    // Update animation (call this in render loop)
+    
     updateAnimation() {
         if (!this.isAnimating) return;
         
         this.animationParameter += this.animationSpeed * this.animationDirection;
         
-        // Reverse direction at endpoints for ping-pong animation
+        // Reverse direction at endpoints for  animation
         if (this.animationParameter >= 1.0) {
             this.animationParameter = 1.0;
             this.animationDirection = -1;
@@ -182,17 +182,17 @@ class BezierCurve {
         }
     }
 
-    // Get current animated position
+    
     getAnimatedPosition() {
         return this.evaluateBezierCurve(this.animationParameter);
     }
 
-    // Set animation speed
+   
     setAnimationSpeed(speed) {
         this.animationSpeed = Math.max(0.001, Math.min(0.02, speed));
     }
 
-    // Reset curve to default control points
+
     resetCurve() {
         this.controlPoints = [
             { x: -4, y: 2, z: -3 },
@@ -204,7 +204,7 @@ class BezierCurve {
         this.animationDirection = 1;
     }
 
-    // Check if point is close to control point (for mouse interaction)
+    //for mouse interaction
     findNearestControlPoint(screenX, screenY, canvasWidth, canvasHeight, viewMatrix, projectionMatrix, threshold = 50) {
         // Project 3D control points to screen coordinates
         for (let i = 0; i < this.controlPoints.length; i++) {

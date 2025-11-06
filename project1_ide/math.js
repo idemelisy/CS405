@@ -206,11 +206,9 @@ function createTransformationMatrix(translateX, translateY, translateZ,
     }
 }
 
-// Matrix inversion function for 4x4 matrices - simplified for view matrix inversion
+// Matrix inversion function for 4x4 matrices 
 function invertMatrix(matrix) {
-    // For view matrices, we can use a simpler approach since they're composed of
-    // rotation and translation. We extract the rotation part (3x3) and translation.
-    // Inverse = [R^T | -R^T * t] where R is rotation, t is translation
+  
     
     // Extract rotation part (3x3 upper-left) and transpose it
     const r00 = matrix[0], r01 = matrix[4], r02 = matrix[8];

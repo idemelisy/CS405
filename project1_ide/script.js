@@ -411,10 +411,10 @@ function drawCameraFrustum(viewMatrix, projectionMatrix) {
         );
     }
     
-    // Draw frustum as wireframe instead of solid (clearer visualization)
+    // Draw frustum as wireframe instead of solid 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.depthMask(false); // Don't write to depth buffer for transparent objects
+    gl.depthMask(false); 
     
     // Draw only the edges for clearer visualization
     drawFrustumWireframe(cameraWorldMatrix, viewMatrix, projectionMatrix);

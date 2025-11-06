@@ -232,9 +232,9 @@ class WebGLRenderer {
     }
 
     // Draw line segments (for grid, control polygon)
-    drawLineSegments(positionBuffer, colorBuffer, vertexCount, modelMatrix, viewMatrix, projectionMatrix) {
+    drawLineSegments(positionBuffer, colorBuffer, vertexCount, modelMatrix, viewMatrix, projectionMatrix, alpha = 1.0) {
         this.setupVertexAttributes(positionBuffer, colorBuffer);
-        this.setMatrixUniforms(modelMatrix, viewMatrix, projectionMatrix);
+        this.setMatrixUniforms(modelMatrix, viewMatrix, projectionMatrix, alpha);
         
         this.webglContext.drawArrays(this.webglContext.LINES, 0, vertexCount);
     }
@@ -294,19 +294,20 @@ class WebGLRenderer {
 
     // Setup frustum geometry for camera visualization
     setupFrustumGeometry(fieldOfView, aspectRatio, nearPlane, farPlane) {
-        this.frustumGeometry = createCameraFrustumGeometry(fieldOfView, aspectRatio, nearPlane, farPlane);
+        // Skip creating solid frustum geometry - we only use wireframes now
+        // this.frustumGeometry = createCameraFrustumGeometry(fieldOfView, aspectRatio, nearPlane, farPlane);
         
         // Clean up old buffers if they exist
         if (this.buffers.frustumPositions) {
             this.webglContext.deleteBuffer(this.buffers.frustumPositions);
+            delete this.buffers.frustumPositions;
         }
         if (this.buffers.frustumColors) {
             this.webglContext.deleteBuffer(this.buffers.frustumColors);
+            delete this.buffers.frustumColors;
         }
         
-        // Create new buffers for frustum
-        this.createBuffer('frustumPositions', this.frustumGeometry.positions);
-        this.createBuffer('frustumColors', this.frustumGeometry.colors);
+        // Don't create solid frustum buffers anymore - wireframe only
         
         // Also create camera indicator
         this.cameraIndicatorGeometry = createCameraIndicatorGeometry();
@@ -323,7 +324,7 @@ class WebGLRenderer {
         this.createBuffer('cameraPositions', this.cameraIndicatorGeometry.positions);
         this.createBuffer('cameraColors', this.cameraIndicatorGeometry.colors);
         
-        return this.frustumGeometry;
+        return null; // No solid frustum geometry - wireframe only
     }
 
     // Check for WebGL errors
