@@ -14,8 +14,13 @@ out vec2 v_uv;
 void main() {
     vec4 viewPos = u_view * u_model * vec4(a_position, 1.0);
     v_viewPos = viewPos.xyz;
+    
+    // Normal matrix: upper-left 3x3 of model-view matrix
+    // Note: For non-uniform scaling, use transpose(inverse(mat3(u_view * u_model)))
+    // For rotation + translation only (NPR typical), this is sufficient
     mat3 normalMat = mat3(u_view * u_model);
     v_viewNormal = normalize(normalMat * a_normal);
+    
     v_uv = a_uv;
     gl_Position = u_proj * viewPos;
 }

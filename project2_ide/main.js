@@ -1,8 +1,10 @@
 (() => {
-  const { Mat4, Vec3, OrbitCamera } = window.MathHelpers;
+  const { Mat4, Vec3, OrbitCamera, degToRad } = window.MathHelpers;
   const vec3 = window.vec3 || (window.glMatrix && window.glMatrix.vec3);
-  if (!vec3) {
-    throw new Error("glMatrix vec3 not found. Ensure gl-matrix-min.js is loaded before main.js");
+  const mat4 = window.mat4 || (window.glMatrix && window.glMatrix.mat4);
+  const mat3 = window.mat3 || (window.glMatrix && window.glMatrix.mat3);
+  if (!vec3 || !mat4 || !mat3) {
+    throw new Error("glMatrix vec3/mat4/mat3 not found. Ensure gl-matrix-min.js is loaded before main.js");
   }
 
   const canvas = document.getElementById("glcanvas");
@@ -18,6 +20,7 @@
   let program = null;
   let gbufferProgram = null;
   let edgeProgram = null;
+  let axisProgram = null;
   let mesh = null;
   let diffuseTex = null;
   let hatchTex = [];
@@ -25,7 +28,12 @@
   let attribs = {};
   let gAttribs = {};
   let edgeAttribs = {};
+  let axisAttribs = {};
   let quad = null;
+  let axis = null;
+  let lightLine = null;
+  let groundGrid = null;
+  let lightSphere = null;
   let fbo = null;
   let fboColor = null;
   let fboGbuffer = null;
@@ -35,9 +43,9 @@
     bands: document.getElementById("bands"),
     rim: document.getElementById("rim"),
     hatchScale: document.getElementById("hatchScale"),
-    lightX: document.getElementById("lightX"),
-    lightY: document.getElementById("lightY"),
-    lightZ: document.getElementById("lightZ"),
+    lightAzimuth: document.getElementById("lightAzimuth"),
+    lightElevation: document.getElementById("lightElevation"),
+    showHelpers: document.getElementById("showHelpers"),
     resetCamera: document.getElementById("resetCamera"),
   };
 
@@ -95,6 +103,21 @@
     const vertices = [];
     const lines = text.split("\n");
     
+    // Helper: compute face normal from 3 positions
+    function computeFaceNormal(p0, p1, p2) {
+      // Edge vectors
+      const e1 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+      const e2 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
+      // Cross product
+      const nx = e1[1] * e2[2] - e1[2] * e2[1];
+      const ny = e1[2] * e2[0] - e1[0] * e2[2];
+      const nz = e1[0] * e2[1] - e1[1] * e2[0];
+      // Normalize
+      const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+      if (len < 0.0001) return [0, 1, 0];
+      return [nx / len, ny / len, nz / len];
+    }
+    
     for (const line of lines) {
       const l = line.trim();
       if (!l || l.startsWith("#")) continue;
@@ -113,18 +136,36 @@
         // Triangulate polygon (fan from first vertex)
         for (let i = 1; i < parts.length - 1; i++) {
           const tri = [parts[0], parts[i], parts[i + 1]];
-          for (const v of tri) {
+          
+          // Get vertex indices for all 3 vertices
+          const triData = tri.map(v => {
             const [vi, ti, ni] = v.split("/").map(s => s ? parseInt(s, 10) : 0);
-            const p = positions[vi - 1] || [0, 0, 0];
-            const uv = (ti && uvs[ti - 1]) || [0, 0];
-            const n = (ni && normals[ni - 1]) || [0, 1, 0];
-            vertices.push(...p, ...n, uv[0], uv[1]);
+            return {
+              p: positions[vi - 1] || [0, 0, 0],
+              uv: (ti && uvs[ti - 1]) || [0, 0],
+              n: (ni && normals[ni - 1]) || null  // null if no normal defined
+            };
+          });
+          
+          // ✅ CRITICAL FIX: Compute face normal if no vertex normals exist
+          let faceNormal = null;
+          if (!triData[0].n && !triData[1].n && !triData[2].n) {
+            faceNormal = computeFaceNormal(triData[0].p, triData[1].p, triData[2].p);
+          }
+          
+          // Emit vertices
+          for (const vd of triData) {
+            const n = vd.n || faceNormal || [0, 1, 0];
+            vertices.push(...vd.p, ...n, vd.uv[0], vd.uv[1]);
           }
         }
       }
     }
     
-    console.log("OBJ parsed:", positions.length, "positions,", normals.length, "normals,", vertices.length / 8, "vertices");
+    const hasOwnNormals = normals.length > 0;
+    console.log("OBJ parsed:", positions.length, "positions,", normals.length, "normals,", 
+                vertices.length / 8, "vertices,", 
+                hasOwnNormals ? "using OBJ normals" : "COMPUTED face normals");
     return new Float32Array(vertices);
   }
 
@@ -244,10 +285,14 @@
 
   function createHatchSet() {
     hatchTex = [
-      createHatchTexture(() => 255),
-      createHatchTexture((x, y, s) => ((x + y) % 6 === 0 ? 40 : 220)),
-      createHatchTexture((x, y, s) => ((x * 3 + y * 5) % 11 < 3 ? 30 : 200)),
-      createHatchTexture((x, y, s) => ((Math.sin((x + y) * 0.3) > 0.2) ? 25 : 180)),
+      // Level 0: Horizontal lines (thin)
+      createHatchTexture((x, y, s) => (y % 4 === 0 ? 0 : 255)),
+      // Level 1: Diagonal lines (\)
+      createHatchTexture((x, y, s) => ((x + y) % 4 === 0 ? 0 : 255)),
+      // Level 2: Cross-hatch (+ pattern)
+      createHatchTexture((x, y, s) => ((x % 4 === 0 || y % 4 === 0) ? 0 : 255)),
+      // Level 3: Dense cross-hatch (X pattern)
+      createHatchTexture((x, y, s) => (((x + y) % 3 === 0 || (x - y + s) % 3 === 0) ? 0 : 255)),
     ];
   }
 
@@ -269,18 +314,21 @@
 
   async function init() {
     console.log("Init starting...");
-    const [vs, fs, gvs, gfs, evs, efs] = await Promise.all([
+    const [vs, fs, gvs, gfs, evs, efs, avs, afs] = await Promise.all([
       loadText("shaders/phong.vert"),
       loadText("shaders/phong.frag"),
       loadText("shaders/gbuffer.vert"),
       loadText("shaders/gbuffer.frag"),
       loadText("shaders/edge.vert"),
       loadText("shaders/edge.frag"),
+      loadText("shaders/axis.vert"),
+      loadText("shaders/axis.frag"),
     ]);
     console.log("Shaders loaded");
     program = createProgram(vs, fs);
     gbufferProgram = createProgram(gvs, gfs);
     edgeProgram = createProgram(evs, efs);
+    axisProgram = createProgram(avs, afs);
     console.log("Programs created");
 
     gl.useProgram(gbufferProgram);
@@ -288,6 +336,7 @@
     gl.useProgram(program);
     attribs = getAttribLocations(program, ["a_position", "a_normal", "a_uv"]);
     edgeAttribs = getAttribLocations(edgeProgram, ["a_position", "a_uv"]);
+    axisAttribs = getAttribLocations(axisProgram, ["a_position", "a_color"]);
     uniforms = getUniformLocations(program, [
       "u_model", "u_view", "u_proj", "u_diffuse",
       "u_lightDir", "u_lightColor", "u_mode",
@@ -296,7 +345,13 @@
     ]);
     console.log("Attributes and uniforms located");
 
+    // Setup rendering state
     gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LESS);
+    gl.disable(gl.BLEND);  // Opaque rendering (no transparency)
+    gl.frontFace(gl.CCW);  // Counter-clockwise winding is front-face (OpenGL default)
+    gl.cullFace(gl.BACK);  // Cull back-facing triangles
+    gl.enable(gl.CULL_FACE);
 
     // Load model
     try {
@@ -319,8 +374,16 @@
     console.log("Textures created");
 
     setupQuad();
+    createAxisGeometry();
+    lightLine = createLightLine();
+    groundGrid = createGroundGrid();
+    lightSphere = createLightSphere();
     setupFBO();
-    console.log("FBO and quad ready");
+    console.log("Geometry ready:");
+    console.log("  Axis:", axis.count, "vertices");
+    console.log("  Light line:", lightLine.count, "vertices");
+    console.log("  Grid:", groundGrid.count, "vertices");
+    console.log("  Light sphere:", lightSphere.count, "vertices");
 
     gl.useProgram(program);
     gl.uniform1i(uniforms.u_diffuse, 0);
@@ -354,6 +417,151 @@
     gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 16, 8);
     gl.bindVertexArray(null);
     quad = { vao, count: 4 };
+  }
+
+  function createAxisGeometry() {
+    // Create axis lines: X(red), Y(green), Z(blue)
+    const axisLength = 2.5;
+    const vertices = [
+      // X axis (red)
+      0, 0, 0,  1, 0, 0,
+      axisLength, 0, 0,  1, 0, 0,
+      
+      // Y axis (green)
+      0, 0, 0,  0, 1, 0,
+      0, axisLength, 0,  0, 1, 0,
+      
+      // Z axis (blue)
+      0, 0, 0,  0, 0, 1,
+      0, 0, axisLength,  0, 0, 1,
+    ];
+    
+    const data = new Float32Array(vertices);
+    const vao = gl.createVertexArray();
+    const buf = gl.createBuffer();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    
+    const posLoc = axisAttribs.a_position;
+    const colLoc = axisAttribs.a_color;
+    const stride = 24;
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(colLoc);
+    gl.vertexAttribPointer(colLoc, 3, gl.FLOAT, false, stride, 12);
+    gl.bindVertexArray(null);
+    
+    axis = { vao, count: 6, buffer: buf };
+  }
+  
+  function createLightLine() {
+    // Separate buffer for dynamic light line
+    // Initialize with dummy data (will be updated each frame)
+    const dummyData = new Float32Array([
+      0, 0, 0,  1, 1, 0,  // origin
+      1, 1, 1,  1, 1, 0,  // dummy end point
+    ]);
+    
+    const vao = gl.createVertexArray();
+    const buf = gl.createBuffer();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, dummyData, gl.DYNAMIC_DRAW);
+    
+    const posLoc = axisAttribs.a_position;
+    const colLoc = axisAttribs.a_color;
+    const stride = 24;
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(colLoc);
+    gl.vertexAttribPointer(colLoc, 3, gl.FLOAT, false, stride, 12);
+    gl.bindVertexArray(null);
+    
+    return { vao, count: 2, buffer: buf };
+  }
+  
+  function createGroundGrid() {
+    // Create XZ grid (ground plane at y=0)
+    const gridSize = 6;
+    const gridStep = 2;  // Wider spacing - less dense
+    const vertices = [];
+    const color = [0.25, 0.25, 0.25]; // Darker gray - less prominent
+    
+    // Lines parallel to X axis
+    for (let z = -gridSize; z <= gridSize; z += gridStep) {
+      vertices.push(-gridSize, 0, z, ...color);
+      vertices.push(gridSize, 0, z, ...color);
+    }
+    
+    // Lines parallel to Z axis
+    for (let x = -gridSize; x <= gridSize; x += gridStep) {
+      vertices.push(x, 0, -gridSize, ...color);
+      vertices.push(x, 0, gridSize, ...color);
+    }
+    
+    const data = new Float32Array(vertices);
+    const vao = gl.createVertexArray();
+    const buf = gl.createBuffer();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    
+    const posLoc = axisAttribs.a_position;
+    const colLoc = axisAttribs.a_color;
+    const stride = 24;
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(colLoc);
+    gl.vertexAttribPointer(colLoc, 3, gl.FLOAT, false, stride, 12);
+    gl.bindVertexArray(null);
+    
+    return { vao, count: vertices.length / 6, buffer: buf };
+  }
+  
+  function createLightSphere() {
+    // Create octahedron for light source visualization
+    const vertices = [];
+    const color = [1, 1, 0.3]; // Bright yellow
+    const radius = 0.3;
+    
+    // Octahedron: 8 triangular faces
+    const triangles = [
+      // Top 4 triangles
+      [[0, radius, 0], [radius, 0, 0], [0, 0, radius]],
+      [[0, radius, 0], [0, 0, radius], [-radius, 0, 0]],
+      [[0, radius, 0], [-radius, 0, 0], [0, 0, -radius]],
+      [[0, radius, 0], [0, 0, -radius], [radius, 0, 0]],
+      // Bottom 4 triangles
+      [[0, -radius, 0], [0, 0, radius], [radius, 0, 0]],
+      [[0, -radius, 0], [-radius, 0, 0], [0, 0, radius]],
+      [[0, -radius, 0], [0, 0, -radius], [-radius, 0, 0]],
+      [[0, -radius, 0], [radius, 0, 0], [0, 0, -radius]],
+    ];
+    
+    for (let tri of triangles) {
+      for (let vert of tri) {
+        vertices.push(...vert, ...color);
+      }
+    }
+    
+    const data = new Float32Array(vertices);
+    const vao = gl.createVertexArray();
+    const buf = gl.createBuffer();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    
+    const posLoc = axisAttribs.a_position;
+    const colLoc = axisAttribs.a_color;
+    const stride = 24;
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(colLoc);
+    gl.vertexAttribPointer(colLoc, 3, gl.FLOAT, false, stride, 12);
+    gl.bindVertexArray(null);
+    
+    return { vao, count: vertices.length / 6, buffer: buf };
   }
 
   let gbufferInternal = gl.RGBA16F;
@@ -432,16 +640,50 @@
     gl.uniformMatrix4fv(progUniforms.u_view, false, view);
     gl.uniformMatrix4fv(progUniforms.u_proj, false, proj);
     gl.uniformMatrix4fv(progUniforms.u_model, false, model);
+    return view;  // Return view matrix for light transformation
   }
 
-  function setLighting(u) {
-    const ld = vec3.fromValues(
-      parseFloat(ui.lightX.value),
-      parseFloat(ui.lightY.value),
-      parseFloat(ui.lightZ.value),
+  function setLighting(u, viewMatrix) {
+    // Convert spherical coordinates to cartesian (light direction in WORLD space)
+    // Azimuth: 0° = +X, 90° = +Z, 180° = -X, 270° = -Z
+    // Elevation: +90° = +Y (top), 0° = horizon, -90° = -Y (bottom)
+    const azimuthDeg = parseFloat(ui.lightAzimuth.value);
+    const elevationDeg = parseFloat(ui.lightElevation.value);
+    
+    const azimuthRad = degToRad(azimuthDeg);
+    const elevationRad = degToRad(elevationDeg);
+    
+    // Spherical to Cartesian conversion (WORLD space)
+    const cosElev = Math.cos(elevationRad);
+    const lightDirWorld = vec3.fromValues(
+      cosElev * Math.cos(azimuthRad),   // X
+      Math.sin(elevationRad),            // Y
+      cosElev * Math.sin(azimuthRad)    // Z
     );
-    vec3.normalize(ld, ld);
-    gl.uniform3fv(u.u_lightDir, ld);
+    vec3.normalize(lightDirWorld, lightDirWorld);
+    
+    // ✅ CRITICAL FIX: Transform light direction from World Space to View Space
+    // For direction vectors, we use ONLY the 3x3 rotation part (ignore translation)
+    // L_view = mat3(V) * L_world
+    
+    const lightDirView = vec3.create();
+    
+    if (mat3 && mat3.fromMat4 && vec3.transformMat3) {
+      // Method 1: Use mat3 functions if available
+      const viewMat3 = mat3.create();
+      mat3.fromMat4(viewMat3, viewMatrix);
+      vec3.transformMat3(lightDirView, lightDirWorld, viewMat3);
+    } else {
+      // Method 2: Manual 3x3 matrix multiplication (fallback)
+      // Multiply direction by upper-left 3x3 of view matrix
+      lightDirView[0] = viewMatrix[0] * lightDirWorld[0] + viewMatrix[4] * lightDirWorld[1] + viewMatrix[8] * lightDirWorld[2];
+      lightDirView[1] = viewMatrix[1] * lightDirWorld[0] + viewMatrix[5] * lightDirWorld[1] + viewMatrix[9] * lightDirWorld[2];
+      lightDirView[2] = viewMatrix[2] * lightDirWorld[0] + viewMatrix[6] * lightDirWorld[1] + viewMatrix[10] * lightDirWorld[2];
+    }
+    
+    vec3.normalize(lightDirView, lightDirView);
+    
+    gl.uniform3fv(u.u_lightDir, lightDirView);  // Send VIEW space light direction
     gl.uniform3f(u.u_lightColor, 1.0, 1.0, 1.0);
   }
 
@@ -465,7 +707,8 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
     gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.08, 0.08, 0.1, 1);
+    gl.enable(gl.DEPTH_TEST);  // Ensure depth test is on
+    gl.clearColor(0.9, 0.9, 0.95, 1); // Light gray/white background
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(gbufferProgram);
     const gUniforms = getUniformLocations(gbufferProgram, ["u_model", "u_view", "u_proj", "u_diffuse", "u_lightDir", "u_lightColor", "u_mode", "u_bands", "u_rim", "u_hatchScale", "u_hatch0", "u_hatch1", "u_hatch2", "u_hatch3"]);
@@ -474,8 +717,8 @@
     gl.uniform1i(gUniforms.u_hatch1, 2);
     gl.uniform1i(gUniforms.u_hatch2, 3);
     gl.uniform1i(gUniforms.u_hatch3, 4);
-    setMatrices(gUniforms);
-    setLighting(gUniforms);
+    const viewMatrix = setMatrices(gUniforms);
+    setLighting(gUniforms, viewMatrix);
     setNPROptions(gUniforms);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, diffuseTex);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, hatchTex[0]);
@@ -500,8 +743,10 @@
     // Pass 2: Edge detection and composite to screen
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0, 0, 0, 1);
+    gl.disable(gl.DEPTH_TEST);  // Fullscreen quad doesn't need depth
+    gl.clearColor(0.9, 0.9, 0.95, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    
     gl.useProgram(edgeProgram);
     const eUniforms = getUniformLocations(edgeProgram, ["u_colorTex", "u_gbufferTex", "u_texel"]);
     gl.uniform1i(eUniforms.u_colorTex, 0);
@@ -512,6 +757,85 @@
     gl.bindVertexArray(quad.vao);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, quad.count);
     gl.bindVertexArray(null);
+
+    // Pass 3: Draw visualization helpers (grid, axes, light source)
+    if (ui.showHelpers.checked) {
+      gl.enable(gl.DEPTH_TEST);
+      gl.clear(gl.DEPTH_BUFFER_BIT);  // Clear depth so helpers render on top
+      gl.useProgram(axisProgram);
+      const aUniforms = getUniformLocations(axisProgram, ["u_model", "u_view", "u_proj"]);
+      
+      // Set view and projection
+      const view = Mat4.create();
+      camera.viewMatrix(view);
+      const proj = Mat4.create();
+      Mat4.perspective(proj, degToRad(45), canvas.width / canvas.height, 0.1, 100);
+      gl.uniformMatrix4fv(aUniforms.u_view, false, view);
+      gl.uniformMatrix4fv(aUniforms.u_proj, false, proj);
+      
+      // Get light direction and position (spherical to cartesian)
+      const azimuthDeg = parseFloat(ui.lightAzimuth.value);
+      const elevationDeg = parseFloat(ui.lightElevation.value);
+      const azimuthRad = degToRad(azimuthDeg);
+      const elevationRad = degToRad(elevationDeg);
+      
+      const cosElev = Math.cos(elevationRad);
+      const lightDir = vec3.fromValues(
+        cosElev * Math.cos(azimuthRad),
+        Math.sin(elevationRad),
+        cosElev * Math.sin(azimuthRad)
+      );
+      
+      const lightDistance = 4.5;
+      const lightPos = vec3.fromValues(
+        lightDir[0] * lightDistance,
+        lightDir[1] * lightDistance,
+        lightDir[2] * lightDistance
+      );
+      
+      // 1. Draw ground grid (thin lines)
+      gl.lineWidth(1.0);
+      const gridModel = Mat4.create();
+      Mat4.identity(gridModel);
+      gl.uniformMatrix4fv(aUniforms.u_model, false, gridModel);
+      gl.bindVertexArray(groundGrid.vao);
+      gl.drawArrays(gl.LINES, 0, groundGrid.count);
+      gl.bindVertexArray(null);
+      
+      // 2. Draw XYZ axes (thicker if supported)
+      gl.lineWidth(3.0);  // May not work on all GPUs, but try
+      const axisModel = Mat4.create();
+      Mat4.identity(axisModel);
+      gl.uniformMatrix4fv(aUniforms.u_model, false, axisModel);
+      gl.bindVertexArray(axis.vao);
+      gl.drawArrays(gl.LINES, 0, axis.count);
+      gl.bindVertexArray(null);
+      
+      // 3. Draw light direction line (thickest)
+      gl.lineWidth(4.0);
+      const lightLineVerts = new Float32Array([
+        0, 0, 0,  1, 0.9, 0.2,  // origin, bright yellow-orange
+        lightPos[0], lightPos[1], lightPos[2],  1, 0.9, 0.2,  // light position
+      ]);
+      // Update light line buffer (using VAO's buffer)
+      gl.bindBuffer(gl.ARRAY_BUFFER, lightLine.buffer);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, lightLineVerts);
+      
+      // Draw using VAO
+      gl.bindVertexArray(lightLine.vao);
+      gl.drawArrays(gl.LINES, 0, lightLine.count);
+      gl.bindVertexArray(null);
+      gl.lineWidth(1.0);  // Reset
+      
+      // 4. Draw light source sphere at light position
+      const lightModel = Mat4.create();
+      Mat4.identity(lightModel);
+      Mat4.translate(lightModel, lightModel, lightPos);
+      gl.uniformMatrix4fv(aUniforms.u_model, false, lightModel);
+      gl.bindVertexArray(lightSphere.vao);
+      gl.drawArrays(gl.TRIANGLES, 0, lightSphere.count);
+      gl.bindVertexArray(null);
+    }
 
     requestAnimationFrame(draw);
   }

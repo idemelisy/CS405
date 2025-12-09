@@ -32,7 +32,7 @@
         <h2>Controls</h2>
         <label for="mode">Technique</label>
         <select id="mode">
-          <option value="0">Reference Phong</option>
+          <option value="0" selected>Reference Phong</option>
           <option value="1">Toon</option>
           <option value="2">Edges</option>
           <option value="3">Hatching</option>
@@ -50,14 +50,17 @@
         </div>
 
         <label for="hatchScale">Hatch Scale</label>
-        <input id="hatchScale" type="range" min="4" max="40" step="1" value="16" />
+        <input id="hatchScale" type="range" min="2" max="30" step="1" value="8" />
 
-        <label for="lightX">Light Dir X</label>
-        <input id="lightX" type="range" min="-1" max="1" step="0.02" value="-0.4" />
-        <label for="lightY">Light Dir Y</label>
-        <input id="lightY" type="range" min="-1" max="1" step="0.02" value="0.8" />
-        <label for="lightZ">Light Dir Z</label>
-        <input id="lightZ" type="range" min="-1" max="1" step="0.02" value="0.4" />
+        <label for="lightAzimuth">Light Azimuth (yatay açı)</label>
+        <input id="lightAzimuth" type="range" min="0" max="360" step="5" value="135" />
+        <label for="lightElevation">Light Elevation (dikey açı)</label>
+        <input id="lightElevation" type="range" min="-90" max="90" step="5" value="40" />
+
+        <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px;">
+          <input id="showHelpers" type="checkbox" checked />
+          <span>Show Grid & Light Source</span>
+        </label>
 
         <button id="resetCamera">Reset Camera</button>
         <p class="note">Drag to orbit. Scroll to zoom.</p>
