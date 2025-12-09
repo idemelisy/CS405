@@ -15,8 +15,12 @@
     #controls select, #controls input { width: 100%; box-sizing: border-box; padding: 6px; }
     #controls .row { display: flex; gap: 8px; }
     #controls .row > div { flex: 1; }
-    #canvas-container { display: flex; align-items: center; justify-content: center; background: #111; }
+    #canvas-container { display: flex; align-items: center; justify-content: center; background: #111; position: relative; }
     canvas { width: 100%; height: 100%; max-height: 100vh; display: block; }
+    .compare-divider { position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; background: #fff; pointer-events: none; display: none; z-index: 10; }
+    .compare-label { position: absolute; top: 10px; padding: 4px 12px; background: rgba(0,0,0,0.7); color: #fff; font-size: 14px; border-radius: 4px; pointer-events: none; display: none; z-index: 10; }
+    .compare-label.left { left: 10px; }
+    .compare-label.right { right: 10px; }
     .note { font-size: 12px; color: #555; margin-top: 8px; }
     button { padding: 8px 10px; margin-top: 8px; width: 100%; }
   </style>
@@ -30,10 +34,23 @@
     <aside id="sidebar">
       <div id="controls">
         <h2>Controls</h2>
-        <label for="mode">Technique</label>
+        <label for="mode">Left / Main Technique</label>
         <select id="mode">
           <option value="0" selected>Reference Phong</option>
           <option value="1">Toon</option>
+          <option value="2">Edges</option>
+          <option value="3">Hatching</option>
+        </select>
+
+        <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px; background: #e8f4e8; padding: 8px; border-radius: 4px;">
+          <input id="compareMode" type="checkbox" />
+          <span style="font-weight: bold;">🔀 Compare Mode (Side-by-Side)</span>
+        </label>
+
+        <label for="mode2">Right Technique (Compare)</label>
+        <select id="mode2" disabled>
+          <option value="0">Reference Phong</option>
+          <option value="1" selected>Toon</option>
           <option value="2">Edges</option>
           <option value="3">Hatching</option>
         </select>
@@ -45,7 +62,7 @@
           </div>
           <div>
             <label for="rim">Edge/Rim Width</label>
-            <input id="rim" type="range" min="0.02" max="0.6" step="0.01" value="0.25" />
+            <input id="rim" type="range" min="0.05" max="1.0" step="0.05" value="0.4" />
           </div>
         </div>
 
@@ -68,6 +85,9 @@
     </aside>
     <section id="canvas-container">
       <canvas id="glcanvas" width="1280" height="720"></canvas>
+      <div class="compare-divider" id="compareDivider"></div>
+      <div class="compare-label left" id="labelLeft">Phong</div>
+      <div class="compare-label right" id="labelRight">Toon</div>
     </section>
   </main>
 

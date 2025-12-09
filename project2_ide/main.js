@@ -21,8 +21,8 @@
   let gbufferProgram = null;
   let edgeProgram = null;
   let axisProgram = null;
-  let mesh = null;
-  let diffuseTex = null;
+  let meshGroups = [];  // [{vao, count, texture}, ...]
+  let textures = {};    // {body: tex, eyes: tex}
   let hatchTex = [];
   let uniforms = {};
   let attribs = {};
@@ -40,6 +40,8 @@
 
   const ui = {
     mode: document.getElementById("mode"),
+    mode2: document.getElementById("mode2"),
+    compareMode: document.getElementById("compareMode"),
     bands: document.getElementById("bands"),
     rim: document.getElementById("rim"),
     hatchScale: document.getElementById("hatchScale"),
@@ -47,7 +49,12 @@
     lightElevation: document.getElementById("lightElevation"),
     showHelpers: document.getElementById("showHelpers"),
     resetCamera: document.getElementById("resetCamera"),
+    compareDivider: document.getElementById("compareDivider"),
+    labelLeft: document.getElementById("labelLeft"),
+    labelRight: document.getElementById("labelRight"),
   };
+  
+  const modeNames = ["Reference Phong", "Toon", "Edges", "Hatching"];
 
   function resize() {
     const dpr = window.devicePixelRatio || 1;
@@ -95,28 +102,35 @@
     return prog;
   }
 
-  // OBJ loader (positions, normals, uvs, triangles only)
+  // OBJ loader with SMOOTH NORMALS and MULTI-MATERIAL support
   function parseOBJ(text) {
     const positions = [];
     const normals = [];
     const uvs = [];
-    const vertices = [];
     const lines = text.split("\n");
     
     // Helper: compute face normal from 3 positions
     function computeFaceNormal(p0, p1, p2) {
-      // Edge vectors
       const e1 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
       const e2 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
-      // Cross product
       const nx = e1[1] * e2[2] - e1[2] * e2[1];
       const ny = e1[2] * e2[0] - e1[0] * e2[2];
       const nz = e1[0] * e2[1] - e1[1] * e2[0];
-      // Normalize
       const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
       if (len < 0.0001) return [0, 1, 0];
       return [nx / len, ny / len, nz / len];
     }
+    
+    // Helper: normalize a vector
+    function normalize(v) {
+      const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+      if (len < 0.0001) return [0, 1, 0];
+      return [v[0]/len, v[1]/len, v[2]/len];
+    }
+    
+    // First pass: collect positions, uvs, and faces BY MATERIAL
+    const materialGroups = {};  // material name -> array of faces
+    let currentMaterial = "default";
     
     for (const line of lines) {
       const l = line.trim();
@@ -131,42 +145,99 @@
       } else if (l.startsWith("vt ")) {
         const parts = l.split(/\s+/);
         uvs.push([parseFloat(parts[1]), parseFloat(parts[2])]);
-      } else if (l.startsWith("f ")) {
-        const parts = l.split(/\s+/).slice(1);
-        // Triangulate polygon (fan from first vertex)
-        for (let i = 1; i < parts.length - 1; i++) {
-          const tri = [parts[0], parts[i], parts[i + 1]];
-          
-          // Get vertex indices for all 3 vertices
-          const triData = tri.map(v => {
-            const [vi, ti, ni] = v.split("/").map(s => s ? parseInt(s, 10) : 0);
-            return {
-              p: positions[vi - 1] || [0, 0, 0],
-              uv: (ti && uvs[ti - 1]) || [0, 0],
-              n: (ni && normals[ni - 1]) || null  // null if no normal defined
-            };
-          });
-          
-          // ✅ CRITICAL FIX: Compute face normal if no vertex normals exist
-          let faceNormal = null;
-          if (!triData[0].n && !triData[1].n && !triData[2].n) {
-            faceNormal = computeFaceNormal(triData[0].p, triData[1].p, triData[2].p);
-          }
-          
-          // Emit vertices
-          for (const vd of triData) {
-            const n = vd.n || faceNormal || [0, 1, 0];
-            vertices.push(...vd.p, ...n, vd.uv[0], vd.uv[1]);
-          }
+      } else if (l.startsWith("usemtl ")) {
+        currentMaterial = l.split(/\s+/)[1] || "default";
+        if (!materialGroups[currentMaterial]) {
+          materialGroups[currentMaterial] = [];
         }
+      } else if (l.startsWith("f ")) {
+        if (!materialGroups[currentMaterial]) {
+          materialGroups[currentMaterial] = [];
+        }
+        const parts = l.split(/\s+/).slice(1);
+        const face = parts.map(v => {
+          const [vi, ti, ni] = v.split("/").map(s => s ? parseInt(s, 10) : 0);
+          return { vi: vi - 1, ti: ti ? ti - 1 : -1, ni: ni ? ni - 1 : -1 };
+        });
+        materialGroups[currentMaterial].push(face);
       }
     }
     
+    // Check if OBJ has normals
     const hasOwnNormals = normals.length > 0;
-    console.log("OBJ parsed:", positions.length, "positions,", normals.length, "normals,", 
-                vertices.length / 8, "vertices,", 
-                hasOwnNormals ? "using OBJ normals" : "COMPUTED face normals");
-    return new Float32Array(vertices);
+    
+    // Collect ALL faces for smooth normal computation
+    const allFaces = Object.values(materialGroups).flat();
+    
+    // If no normals, compute SMOOTH normals (average of adjacent face normals)
+    let smoothNormals = null;
+    if (!hasOwnNormals) {
+      smoothNormals = positions.map(() => [0, 0, 0]);
+      
+      for (const face of allFaces) {
+        for (let i = 1; i < face.length - 1; i++) {
+          const v0 = face[0], v1 = face[i], v2 = face[i + 1];
+          const p0 = positions[v0.vi] || [0,0,0];
+          const p1 = positions[v1.vi] || [0,0,0];
+          const p2 = positions[v2.vi] || [0,0,0];
+          
+          const fn = computeFaceNormal(p0, p1, p2);
+          
+          for (const v of [v0, v1, v2]) {
+            if (v.vi >= 0 && v.vi < smoothNormals.length) {
+              smoothNormals[v.vi][0] += fn[0];
+              smoothNormals[v.vi][1] += fn[1];
+              smoothNormals[v.vi][2] += fn[2];
+            }
+          }
+        }
+      }
+      
+      smoothNormals = smoothNormals.map(n => normalize(n));
+      console.log("Computed SMOOTH normals for", smoothNormals.length, "vertices");
+    }
+    
+    // Generate vertex buffer for each material group
+    function generateVertices(faces) {
+      const vertices = [];
+      for (const face of faces) {
+        for (let i = 1; i < face.length - 1; i++) {
+          const tri = [face[0], face[i], face[i + 1]];
+          
+          for (const v of tri) {
+            const p = positions[v.vi] || [0, 0, 0];
+            const uv = v.ti >= 0 ? (uvs[v.ti] || [0, 0]) : [0, 0];
+            
+            let n;
+            if (hasOwnNormals && v.ni >= 0) {
+              n = normals[v.ni] || [0, 1, 0];
+            } else if (smoothNormals && v.vi >= 0) {
+              n = smoothNormals[v.vi];
+            } else {
+              n = [0, 1, 0];
+            }
+            
+            vertices.push(p[0], p[1], p[2], n[0], n[1], n[2], uv[0], uv[1]);
+          }
+        }
+      }
+      return new Float32Array(vertices);
+    }
+    
+    // Build result object with material groups
+    const result = {
+      materials: {}
+    };
+    
+    for (const [matName, faces] of Object.entries(materialGroups)) {
+      const verts = generateVertices(faces);
+      result.materials[matName] = verts;
+      console.log(`  Material "${matName}": ${verts.length / 8} vertices`);
+    }
+    
+    console.log("OBJ parsed:", positions.length, "positions,", 
+                Object.keys(materialGroups).length, "materials");
+    return result;
   }
 
   function createVAO(data, attribSet) {
@@ -353,23 +424,53 @@
     gl.cullFace(gl.BACK);  // Cull back-facing triangles
     gl.enable(gl.CULL_FACE);
 
-    // Load model
+    // Load model with multi-material support
     try {
       const objText = await loadText("po/panda.obj");
       console.log("OBJ file loaded, size:", objText.length, "bytes");
-      const data = parseOBJ(objText);
-      if (data.length === 0) {
+      const objData = parseOBJ(objText);
+      
+      // Load textures for each material
+      textures.body = await createTexture("po/textures/Po.png");
+      textures.eyes = await createTexture("po/textures/Po eye.png");
+      textures.specular = await createTexture("po/textures/Po Specular.png");
+      textures.normal = await createTexture("po/textures/Po Normals.png");
+      console.log("Loaded: diffuse (body, eyes), specular, normal maps");
+      
+      // Create VAO for each material group
+      for (const [matName, vertices] of Object.entries(objData.materials)) {
+        if (vertices.length === 0) continue;
+        const vao = createVAO(vertices, gAttribs);
+        
+        // Map material name to texture
+        let tex = textures.body;  // default
+        if (matName.toLowerCase().includes("eye")) {
+          tex = textures.eyes;
+        }
+        
+        meshGroups.push({
+          name: matName,
+          vao: vao.vao,
+          count: vao.count,
+          texture: tex
+        });
+        console.log(`  Material group "${matName}": ${vao.count} vertices`);
+      }
+      
+      if (meshGroups.length === 0) {
         throw new Error("OBJ parsing returned no geometry");
       }
-      mesh = createVAO(data, gAttribs);
-      console.log("Po model loaded, vertices:", mesh.count);
+      console.log("Po model loaded with", meshGroups.length, "material groups");
     } catch (e) {
       console.warn("OBJ load failed, using cube", e);
-      mesh = createFallbackCube(gAttribs);
-      console.log("Using fallback cube, vertices:", mesh.count);
+      textures.body = await createTexture("po/textures/Po.png");
+      textures.specular = textures.body;  // Use diffuse as fallback
+      textures.normal = textures.body;    // Use diffuse as fallback
+      const cube = createFallbackCube(gAttribs);
+      meshGroups.push({ name: "cube", vao: cube.vao, count: cube.count, texture: textures.body });
+      console.log("Using fallback cube, vertices:", cube.count);
     }
 
-    diffuseTex = await createTexture("po/textures/Po.png");
     createHatchSet();
     console.log("Textures created");
 
@@ -628,6 +729,25 @@
       camera.dolly(Math.sign(e.deltaY));
     }, { passive: false });
     ui.resetCamera.addEventListener("click", () => camera.reset());
+    
+    // Compare mode toggle
+    function updateCompareUI() {
+      const isCompare = ui.compareMode.checked;
+      ui.mode2.disabled = !isCompare;
+      ui.compareDivider.style.display = isCompare ? "block" : "none";
+      ui.labelLeft.style.display = isCompare ? "block" : "none";
+      ui.labelRight.style.display = isCompare ? "block" : "none";
+      
+      if (isCompare) {
+        ui.labelLeft.textContent = modeNames[parseInt(ui.mode.value, 10)];
+        ui.labelRight.textContent = modeNames[parseInt(ui.mode2.value, 10)];
+      }
+    }
+    
+    ui.compareMode.addEventListener("change", updateCompareUI);
+    ui.mode.addEventListener("change", updateCompareUI);
+    ui.mode2.addEventListener("change", updateCompareUI);
+    updateCompareUI();  // Initialize
   }
 
   function setMatrices(progUniforms) {
@@ -687,14 +807,43 @@
     gl.uniform3f(u.u_lightColor, 1.0, 1.0, 1.0);
   }
 
-  function setNPROptions(u) {
-    gl.uniform1i(u.u_mode, parseInt(ui.mode.value, 10));
+  function setNPROptions(u, modeOverride = null) {
+    const mode = modeOverride !== null ? modeOverride : parseInt(ui.mode.value, 10);
+    gl.uniform1i(u.u_mode, mode);
     gl.uniform1f(u.u_bands, parseFloat(ui.bands.value));
     gl.uniform1f(u.u_rim, parseFloat(ui.rim.value));
     gl.uniform1f(u.u_hatchScale, parseFloat(ui.hatchScale.value));
   }
 
   let frameCount = 0;
+  
+  // Helper function to render model with given mode
+  function renderModel(gUniforms, viewMatrix, modeValue) {
+    setNPROptions(gUniforms, modeValue);
+    
+    // Bind specular and normal maps (same for all materials)
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, textures.specular);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, textures.normal);
+    
+    // Bind hatch textures
+    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, hatchTex[0]);
+    gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, hatchTex[1]);
+    gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, hatchTex[2]);
+    gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, hatchTex[3]);
+
+    // Draw each material group with its own diffuse texture
+    for (const group of meshGroups) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, group.texture);
+      
+      if (group.vao && gl.bindVertexArray) {
+        gl.bindVertexArray(group.vao);
+        gl.drawArrays(gl.TRIANGLES, 0, group.count);
+        gl.bindVertexArray(null);
+      }
+    }
+  }
+  
   function draw() {
     resize();
     if (frameCount === 0) {
@@ -702,43 +851,57 @@
       console.log("Camera distance:", camera.distance, "eye:", camera.getEye());
     }
     frameCount++;
+    
+    const isCompareMode = ui.compareMode.checked;
+    const mode1 = parseInt(ui.mode.value, 10);
+    const mode2 = parseInt(ui.mode2.value, 10);
 
     // Pass 1: G-buffer + color
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
     gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.enable(gl.DEPTH_TEST);  // Ensure depth test is on
-    gl.clearColor(0.9, 0.9, 0.95, 1); // Light gray/white background
+    gl.enable(gl.DEPTH_TEST);
+    gl.clearColor(0.9, 0.9, 0.95, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    
     gl.useProgram(gbufferProgram);
-    const gUniforms = getUniformLocations(gbufferProgram, ["u_model", "u_view", "u_proj", "u_diffuse", "u_lightDir", "u_lightColor", "u_mode", "u_bands", "u_rim", "u_hatchScale", "u_hatch0", "u_hatch1", "u_hatch2", "u_hatch3"]);
+    const gUniforms = getUniformLocations(gbufferProgram, [
+      "u_model", "u_view", "u_proj", "u_diffuse", "u_specularMap", "u_normalMap",
+      "u_lightDir", "u_lightColor", "u_mode", "u_bands", "u_rim", "u_hatchScale", 
+      "u_hatch0", "u_hatch1", "u_hatch2", "u_hatch3"
+    ]);
+    // Texture units: 0=diffuse, 1=specular, 2=normal, 3-6=hatch
     gl.uniform1i(gUniforms.u_diffuse, 0);
-    gl.uniform1i(gUniforms.u_hatch0, 1);
-    gl.uniform1i(gUniforms.u_hatch1, 2);
-    gl.uniform1i(gUniforms.u_hatch2, 3);
-    gl.uniform1i(gUniforms.u_hatch3, 4);
+    gl.uniform1i(gUniforms.u_specularMap, 1);
+    gl.uniform1i(gUniforms.u_normalMap, 2);
+    gl.uniform1i(gUniforms.u_hatch0, 3);
+    gl.uniform1i(gUniforms.u_hatch1, 4);
+    gl.uniform1i(gUniforms.u_hatch2, 5);
+    gl.uniform1i(gUniforms.u_hatch3, 6);
     const viewMatrix = setMatrices(gUniforms);
     setLighting(gUniforms, viewMatrix);
-    setNPROptions(gUniforms);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, diffuseTex);
-    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, hatchTex[0]);
-    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, hatchTex[1]);
-    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, hatchTex[2]);
-    gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, hatchTex[3]);
-
-    if (mesh.vao && gl.bindVertexArray) gl.bindVertexArray(mesh.vao);
-    else {
-      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.buffer);
-      const stride = 32;
-      gl.enableVertexAttribArray(gAttribs.a_position);
-      gl.vertexAttribPointer(gAttribs.a_position, 3, gl.FLOAT, false, stride, 0);
-      gl.enableVertexAttribArray(gAttribs.a_normal);
-      gl.vertexAttribPointer(gAttribs.a_normal, 3, gl.FLOAT, false, stride, 12);
-      gl.enableVertexAttribArray(gAttribs.a_uv);
-      gl.vertexAttribPointer(gAttribs.a_uv, 2, gl.FLOAT, false, stride, 24);
+    
+    if (isCompareMode) {
+      // COMPARE MODE: Split screen rendering
+      const halfWidth = Math.floor(canvas.width / 2);
+      
+      gl.enable(gl.SCISSOR_TEST);
+      
+      // Left half - Mode 1
+      gl.scissor(0, 0, halfWidth, canvas.height);
+      gl.clear(gl.DEPTH_BUFFER_BIT);  // Clear depth for this half
+      renderModel(gUniforms, viewMatrix, mode1);
+      
+      // Right half - Mode 2
+      gl.scissor(halfWidth, 0, canvas.width - halfWidth, canvas.height);
+      gl.clear(gl.DEPTH_BUFFER_BIT);  // Clear depth for this half
+      renderModel(gUniforms, viewMatrix, mode2);
+      
+      gl.disable(gl.SCISSOR_TEST);
+    } else {
+      // NORMAL MODE: Full screen rendering
+      renderModel(gUniforms, viewMatrix, mode1);
     }
-    gl.drawArrays(gl.TRIANGLES, 0, mesh.count);
-    if (mesh.vao && gl.bindVertexArray) gl.bindVertexArray(null);
 
     // Pass 2: Edge detection and composite to screen
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);

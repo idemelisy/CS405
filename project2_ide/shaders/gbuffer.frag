@@ -6,6 +6,8 @@ in vec3 v_viewNormal;
 in vec2 v_uv;
 
 uniform sampler2D u_diffuse;
+uniform sampler2D u_specularMap;  // Specular/roughness map
+uniform sampler2D u_normalMap;    // Normal map (object space)
 uniform sampler2D u_hatch0;
 uniform sampler2D u_hatch1;
 uniform sampler2D u_hatch2;
@@ -60,10 +62,26 @@ void main() {
     // Normal direction (can flip if model has inverted normals)
     vec3 N = N_raw;  // Use N_raw directly (face normals now computed correctly)
     
-    vec3 baseColor = texture(u_diffuse, v_uv).rgb;
+    // Get texture color and boost vibrancy
+    vec3 texColor = texture(u_diffuse, v_uv).rgb;
+    
+    // Black lift: prevent pure black, make it soft dark gray/brown
+    float blackLift = 0.12;  // Minimum brightness (0.12 ≈ RGB 30)
+    vec3 liftedColor = mix(vec3(blackLift, blackLift * 0.95, blackLift * 0.9), vec3(1.0), texColor);
+    // This maps black (0,0,0) to warm dark gray, white stays white
+    
+    // Increase saturation: convert to grayscale, then push away from it
+    float gray = dot(liftedColor, vec3(0.299, 0.587, 0.114));
+    float saturationBoost = 1.3;  // Slightly reduced for softer look
+    vec3 saturated = mix(vec3(gray), liftedColor, saturationBoost);
+    
+    // Softer contrast
+    float contrastBoost = 1.1;  // Reduced for softer shadows
+    vec3 baseColor = (saturated - 0.5) * contrastBoost + 0.5;
+    baseColor = clamp(baseColor, 0.0, 1.0);
     
     // Lighting calculations
-    float ambient = 0.08;  // Slightly increased for visibility
+    float ambient = 0.25;  // Balanced ambient for visibility
     float ndotl = max(dot(N, L), 0.0);
     
     // ========== DEBUG: Visualization Modes ==========
@@ -76,17 +94,23 @@ void main() {
     // Back-face detection: if surface faces away from camera, darken more
     float facing = max(dot(N, V), 0.0);
     
-    // ✅ FIX: Diffuse is intensity only, multiply by baseColor later
-    float diffuse_intensity = ndotl;
+    // Diffuse intensity with boost
+    float lightStrength = 1.5;  // Light intensity multiplier (increase for brighter light)
+    float diffuse_intensity = ndotl * lightStrength;
     
-    // Specular (Blinn-Phong)
+    // Read specular map (controls shininess per-pixel)
+    float specMapValue = texture(u_specularMap, v_uv).r;  // Grayscale specular map
+    
+    // Specular (Blinn-Phong) - controlled by specular map
     vec3 H = normalize(L + V);
-    float spec_intensity = pow(max(dot(N, H), 0.0), 32.0);
+    float shininess = 16.0;  // Lower = softer highlights (was 32)
+    float specBase = pow(max(dot(N, H), 0.0), shininess);
+    float specIntensity = 0.3;  // Overall specular strength (reduced from 0.8)
+    float spec_intensity = specBase * specMapValue * specIntensity;
     
-    // ✅ FIX: Clean Phong calculation (ambient + diffuse + specular)
-    // Add subtle ambient occlusion based on surface facing
+    // Clean Phong calculation (ambient + diffuse + specular)
     float effectiveAmbient = ambient * (0.5 + 0.5 * facing);
-    vec3 phong = baseColor * (effectiveAmbient + diffuse_intensity) + u_lightColor * spec_intensity * 0.6;
+    vec3 phong = baseColor * (effectiveAmbient + diffuse_intensity) + u_lightColor * spec_intensity;
 
     vec3 shaded = phong;
     
@@ -100,10 +124,13 @@ void main() {
         shaded = baseColor * (effectiveAmbient + q) + u_lightColor * specStep * 0.25;
         
     } else if (u_mode == 2) {
-        // Edge/Silhouette (N·V based rim)
-        float edge = smoothstep(0.0, u_rim, abs(dot(N, V)));
+        // Edge/Silhouette (N·V based rim) - stronger effect
+        float ndotv = abs(dot(N, V));
+        float rimThreshold = u_rim * 0.8;  // Wider rim detection
+        float edge = smoothstep(0.0, rimThreshold, ndotv);
+        edge = edge * edge;  // Sharper falloff for more visible edges
         
-        // ✅ FIX: Use clean phong for non-edge regions
+        // Black edges
         shaded = mix(vec3(0.0), phong, edge);
         
     } else if (u_mode == 3) {
