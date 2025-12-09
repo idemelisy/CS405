@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta charset="utf-8"><title>CS405 — WebGL Demos (Stripped)</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#fff;color:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
+.page{max-width:100%;margin:0 auto;min-height:100vh;border:2px solid #000;display:flex;flex-direction:column}
+.header{padding:12px 16px;border-bottom:2px solid #000}
+.title{font-size:32px;font-weight:800}
+.content{padding:16px;display:flex;flex-direction:column;gap:12px}
+.controls label{display:inline-block;min-width:100%}
+.controls input,.controls select{font-size:18px}
+canvas{width:100%;height:min(70vh, 820px);min-height:auto;border:2px solid #000;background:#fff;display:block}
+#log{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;border:1px dashed #000;padding:8px;background:#fafafa}
+a.nav{display:inline-block;margin:12px 16px 16px 16px;border:2px solid #000;padding:8px 12px;color:#000;text-decoration:none;font-weight:700;align-self:flex-start;background:#fff}
+
+:root{
+  --maxw: 1200px;
+  --pad: clamp(12px, 2.2vw, 24px);
+  --fs-body: clamp(16px, 2.0vw, 28px);
+  --fs-title: clamp(22px, 3.2vw, 40px);
+  --fs-caption: clamp(14px, 1.6vw, 22px);
+}
+html, body { height:100%; margin:0; background:#fff; color:#000; }
+.page{
+  max-width: var(--maxw);
+  width: min(100%, var(--maxw));
+  margin: 0 auto;
+  min-height: 100svh;
+  border: 2px solid #000;
+  display: flex;
+  flex-direction: column;
+}
+.header{ padding: var(--pad); border-bottom:2px solid #000; }
+.title{ font-size: var(--fs-title); font-weight: 800; }
+.content{
+  padding: var(--pad);
+  display:flex; flex-direction:column; gap: clamp(10px,1.5vw,20px);
+  font-size: var(--fs-body); line-height:1.5;
+}
+.slide-img{
+  display:block; max-width:100%; height:auto;
+  margin: clamp(8px,1.2vw,16px) auto; border:2px solid #000;
+}
+.figure{ margin:0; }
+.caption{ font-size: var(--fs-caption); text-align:center; margin:8px auto 12px; }
+.caption span{ display:inline-block; padding:2px 6px; border:1px solid #000; background:#f7f7f7; }
+pre{
+  background:#f5f5f5; border:1px solid #000;
+  padding: clamp(8px,1.5vw,16px);
+  white-space: pre-wrap; overflow:auto;
+  font-size: clamp(14px,1.8vw,22px);
+}
+code{ font-size: clamp(14px,1.8vw,22px); }
+.nav-prev, .nav-next{
+  position: fixed; bottom: clamp(10px, 2vh, 20px);
+  padding: clamp(8px,1vw,12px) clamp(10px,1.2vw,14px);
+  border:2px solid #000; background:#fff; color:#000; text-decoration:none; font-weight:700; z-index:10;
+}
+.nav-prev{ left: clamp(10px, 2vw, 24px); }
+.nav-next{ right: clamp(10px, 2vw, 24px); }
+.footer-spacer{ height: clamp(48px, 8vh, 80px); }
+@media (max-width:100%){ .header,.content{ padding:12px; } }
+
+
+.nav-center{
+  position: fixed; bottom: clamp(10px, 2vh, 20px);
+  left: 50%; transform: translateX(-50%);
+  padding: clamp(8px,1vw,12px) clamp(12px,1.6vw,16px);
+  border: 2px solid #000; background:#fff; color:#000;
+  font-weight:700; z-index:10; white-space:nowrap;
+}
+.nav-center a{ color:#000; text-decoration:none; }
+.nav-center a + a{ margin-left: 12px; }
+
+</style></head>
+<body>
+<div class="page">
+  <div class="header"><div class="title">CS405 — WebGL Demos (Stripped)</div></div>
+  <div class="content">
+    <ul>
+      <li><a href="demo_a.html">Demo A — TRS vs RTS</a></li>
+      <li><a href="demo_b.html">Demo B — Depth Precision</a></li>
+      <li><a href="demo_c.html">Demo C — Ground Grid &amp; FOV</a></li>
+      <li><a href="demo_d.html">Demo D — Normal Matrix (Lighting)</a></li>
+    </ul>
+    <p>Open each demo, move the sliders, and verify rendering. A diagnostic log appears below each canvas on error.</p>
+  </div>
+</div>
+
+<script>
+function resizeCanvasToDisplaySize(canvas){
+  const dpr = window.devicePixelRatio || 1;
+  const displayWidth  = Math.max(1, Math.floor(canvas.clientWidth  * dpr));
+  const displayHeight = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+  if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+    canvas.width  = displayWidth;
+    canvas.height = displayHeight;
+  }
+}
+</script>
+
+<div class="nav-center"><a href="index.html">Home</a> · <a href="demos/index.html">Demos</a></div>
+</body></html>

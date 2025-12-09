@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL Polygon Mesh Demo</title>
+</head>
+<body onload="main();">
+    <canvas id="canvas" width="600" height="500"></canvas>
+    <div class="controls">
+        <div class="control-group">
+            <label>Shape</label>
+            <select id="shapeSelect">
+                <option value="cube">Cube</option>
+                <option value="sphere" selected>Sphere</option>
+                <option value="donut">Donut</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Tessellation: <span id="tessValue">16</span></label>
+            <input type="range" id="tessellation" min="3" max="64" value="16">
+        </div>
+        
+        <div class="control-group">
+            <label>Display Mode</label>
+            <div class="checkbox-group">
+                <input type="checkbox" id="wireframe" checked>
+                <span>Wireframe</span>
+            </div>
+            <div class="checkbox-group" style="margin-top: 8px;">
+                <input type="checkbox" id="solid">
+                <span>Solid Fill</span>
+            </div>
+        </div>
+    </div>
+    <div id="stats">
+        Vertices: <span class="stat-value" id="vertexCount">0</span> | 
+        Triangles: <span class="stat-value" id="triCount">0</span> | 
+        Edges: <span class="stat-value" id="edgeCount">0</span>
+    </div>
+<script src="script.js"></script>
+</body>
+</html>

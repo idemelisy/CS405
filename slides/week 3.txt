@@ -1,0 +1,530 @@
+3: Column vs Row Vectors and Order
+
+Non-commutativity means rotate-then-translate differs from translate-then-rotate.
+
+We will use column vectors P' = M P.
+
+ Composition reads right-to-left.
+
+We use column vectors: P' = M · P. Composition order (right-to-left). Example (glMatrix): mat4.multiply(tmp, R, S);
+
+mat4.multiply(M, T, tmp);
+
+// TRS
+
+4: Vectors vs Points (w component)
+
+Represent points as (x,y,z,1) and vectors as (vx,vy,vz,0).
+
+This convention encodes translation as matrix multiplication.
+
+It also captures the idea that directions lack location
+
+Homogeneous: point (x,y,z,1), vector (vx,vy,vz,0).
+
+Translation T(d) affects points (w=1) but leaves vectors (w=0) unchanged.5: Change of Basis as Transform
+
+A rotation matrix is a change of orthonormal basis.
+
+When we re-express pier-aligned coordinates in the camera frame, we effectively rotate into the camera basis.
+
+This perspective clarifies why many formulas look identical to basis-change equations.
+
+View transform: R=[u v n], with u=normalize(up×n), n=normalize(eye−look), v=n×u.
+
+P_cam = R^T · (P_world − eye)6: Homogeneous Coordinates
+
+Encode point P=(x,y,z) as (x,y,z,1) and vector v=(vx,vy,vz) as (vx,vy,vz,0).
+
+Translation affects points but not pure direction vectors, matching our boat velocity arrows.
+
+Example: T(1,0,0)·(1,2,3,1)=(2,2,3,1);
+
+ T · (0,1,0,0)=(0,1,0,0).7: Homogeneous Coordinates
+
+After applying the projection matrix, clip-space coordinates (x',y',z',w') are mapped to NDC by dividing by w'.
+
+This division explains foreshortening that makes distant boats smaller.
+
+After clip: (x',y',z',w'), NDC = (x'/w', y'/w', z'/w').
+
+Foreshortening ∝ 1/z_eye.8: Rigid vs Similarity vs Affine
+
+Rigid transforms preserve distances and angles (rotations + translations).
+
+ Similarity transforms add uniform scaling;
+
+affine adds shear and non-uniform scaling.
+
+ The shoreline alignment appears preserved but relative lengths are not;
+
+this is explained by perspective, which goes beyond affine.
+
+Rigid: R∈SO(3), T;
+
+Similarity: sR,T;
+
+Affine: A (non-uniform scale/shear),T.
+
+ det(R)=+1;
+
+det(A)≠±1 generally.9: Basic Transforms & WebGL
+
+Matrix: [[1,0,0,dx],[0,1,0,dy],[0,0,1,dz],[0,0,0,1]].
+
+Example: move the pier frame origin by (2,-1,0).
+
+Translation changes points but not pure direction vectors, matching overlay arrows.
+
+Matrix: [[1,0,0,dx],[0,1,0,dy],[0,0,1,dz],[0,0,0,1]].
+
+ JS: mat4.translate(model, model, [dx,dy,dz]);
+
+// TRS vs RTS (column-major)
+
+function mul4(a,b){const o=new Array(16); for(let c=0;c<4;c++)for(let r=0;r<4;r++) o[c*4+r]=a[0*4+r]*b[c*4+0]+a[1*4+r]*b[c*4+1]+a[2*4+r]*b[c*4+2]+a[3*4+r]*b[c*4+3]; return o;}
+
+const T=(x,y,z)=>[1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1];
+
+const S=(x,y,z)=>[x,0,0,0, 0,y,0,0, 0,0,z,0, 0,0,0,1];
+
+function Rz(a){const c=Math.cos(a),s=Math.sin(a);return [c,s,0,0,-s,c,0,0,0,0,1,0,0,0,0,1];}
+
+Order matters: TRS applies scale in local space after rotate and translate; RTS scales after translating, changing the apparent motion.10: Basic Transforms & WebGL
+
+Matrix: [[sx,0,0,0],[0,sy,0,0],[0,0,sz,0],[0,0,0,1]].
+
+ Uniform scaling preserves angles;
+
+non-uniform scaling distorts them.
+
+ Numeric example with sx=2, sy=1, sz=1 shows area doubling in x.
+
+Matrix: [[sx,0,0,0],[0,sy,0,0],[0,0,sz,0],[0,0,0,1]].
+
+ JS: mat4.scale(model, model, [sx,sy,sz]);11: Basic Transforms & WebGL
+
+Use θ=30° to rotate the pier axis.
+
+Compute coordinates for P=(1,0,0) and P=(1,1,0) to visualize with numbers.
+
+Rz(θ)=[[c,−s,0,0],[s,c,0,0],[0,0,1,0],[0,0,0,1]].
+
+ JS: mat4.rotateZ(model, model, θRad);12: Basic Transforms & WebGL
+
+Show Rx and Ry matrices and discuss their relation to pitch and yaw.
+
+Explain yaw along skyline and pitch toward or away from water plane.
+
+JS: mat4.rotateX(model, model, θx);
+
+mat4.rotateY(model, model, θy);13: Basic Transforms & WebGL
+
+2D shear in x by factor k keeps y fixed: x' = x + k y.
+
+Demonstrate parallelogram formation, analogous to oblique drawing of the pier.
+
+No built-in shear: construct mat4 S with off-diagonal terms;
+
+then mat4.multiply(model, model, S).3D Affine Transform (4×4 Block Form)
+
+An affine transform maps points by x' = A x + T, preserving straight lines and parallelism. The 4×4 (column‑major) form:
+
+[ A11 A12 A13 0 ]
+
+[ A21 A22 A23 0 ]
+
+[ A31 A32 A33 0 ]
+
+[ Tx  Ty  Tz  1 ]
+
+Rigid: A=R ∈ SO(3), RᵀR=I, det R=+1 (rotation only) + translation T.
+
+Similarity: A=sR (uniform scale s) + T; angles preserved, lengths scale by s.
+
+Affine (general): A arbitrary (non‑uniform scale/shear/reflection), |det A|≠1 scales volume.
+
+// WebGL composition (column‑major): M = T · R · S
+
+function mul4(a,b){{const o=new Array(16);
+
+  for(let c=0;c<4;c++)for(let r=0;r<4;r++)
+
+    o[c*4+r]=a[0*4+r]*b[c*4+0]+a[1*4+r]*b[c*4+1]+a[2*4+r]*b[c*4+2]+a[3*4+r]*b[c*4+3];
+
+  return o;}}
+
+const Tm=(x,y,z)=>[1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1];
+
+const Sm=(x,y,z)=>[x,0,0,0, 0,y,0,0, 0,0,z,0, 0,0,0,1];
+
+Check: det(R)=+1. For uniform scale s, det(sR)=s³. For general A, det(A)<0 flips orientation; |det(A)|≠1 scales volume.15: Basic Transforms & WebGL
+
+For T, R, S we can write inverses quickly;
+
+combine using reverse order rule.
+
+This is vital for moving between frames.
+
+Recover object space: P = M^{-1} P'.
+
+ Implement M^{-1} via known inverses and reverse order.16: Basic Transforms & WebGL
+
+Work through S=diag(2,1,1) with n=(0,1,0).
+
+Compute corrected normal and normalize.
+
+Incorrect handling leads to shading errors.
+
+n' = normalize((M^{-1})^T n).
+
+Code: compute 3×3 normalMatrix from model.17: Basic Transforms & WebGL
+
+Vertex shader with uniform mat4 uModel,uView,uProj and gl_Position = uProj*uView*uModel*aPosition.
+
+ Column-major data sent as Float32Array.
+
+GLSL: attribute vec4 aPosition;
+
+uniform mat4 uMVP;
+
+void main(){ gl_Position = uMVP * aPosition;
+
+}18: Basic Transforms & WebGL
+
+Using glMatrix build uModel via translate-rotate-scale.
+
+ Update uniforms with gl.uniformMatrix4fv and re-render on slider changes.
+
+let model=mat4.create();
+
+// T,R,S then MVP;
+
+gl.uniformMatrix4fv(uMVP,false,mvp);
+19: Basic Transforms & WebGL
+Toggle TRS vs RTS order and observe drift, verifying non-commutativity.
+UI toggles: if(order==='TRS'){...} else {...};
+redraw;
+observe drift vs pier alignment.
+20: Basic Transforms & WebGL
+Explain near/far choice impact on depth precision.
+ Provide small table and rules of thumb.
+z_NDC = (f+n)/(n−f) + (2fn)/(n−f)·(1/z_eye).
+ Push near plane out to improve precision21: Basic Transforms & WebGL
+Define mapping from NDC to pixels;
+derive equations for u,v including inverted y for top-left origins.
+u = (x_NDC+1)*0.5*W;
+v = (1−(y_NDC+1)*0.5)*H (top-left origin).22: Basic Transforms & WebGL
+Determinant nonzero, normalized normals, MVP once per frame, print matrices for inspection.
+Check det(upper3x3)≠0, normals normalized, MVP updated once per frame;
+ print matrices.23: Affine Composition & Properties
+Any affine transform maps lines to lines.
+The straight shoreline remains straight under affine warp, enabling architecture analysis before considering perspective.
+Lines→lines under affine.
+Use for preliminary rectification of architectural elements.24: Affine Composition & Properties
+Barycentric coordinates remain valid under affine maps, enabling attribute interpolation across triangles and texture mapping in later weeks.
+Barycentric interpolation preserved under affine maps;
+useful for attribute interpolation.25: Affine Composition & Properties
+Centroid transforms affinely;
+numeric example for a triangle representing a pier plank shows predictable movement.
+Centroid maps affinely: C' = A·C + t.
+Example: triangle plank centroid transforms predictably.26: Affine Composition & Properties
+Axis-aligned bounding boxes must be recomputed after transforms;
+present tight vs loose bounds and link to culling.
+Recompute AABB after transform, or use OBB for tight bounds;
+aids culling.27: Affine Composition & Properties
+Use axis–angle (Rodrigues) to rotate local frame to arbitrary orientation;
+practical and stable.
+Axis–angle (Rodrigues): R = I c + (1−c) k k^T + [k]_× s, with c=cosθ,s=sinθ.
+28: Affine Composition & Properties
+Extract R,S,T via polar decomposition;
+ensure R orthonormal for animation blending.
+Polar: M = R·S with R orthonormal, S symmetric positive-definite;
+ ensures clean rotations.29: Affine Composition & Properties
+Euler angles can lose a degree of freedom;
+show pitch=90° case and recommend axis–angle or quaternions in tooling.
+Euler (yaw-pitch-roll) may lose a DoF near pitch=90°.
+Prefer quaternions or incremental axis–angle.30: Affine Composition & Properties
+Add nonzero fourth row to introduce perspective;
+bridge to next section.
+Add nonzero fourth row: p' = [A t;
+v^T α] p, enabling perspective effects.31: WebGL Implementation Details
+Canvas, context, shader compilation, buffers, attributes, uniforms, draw.
+ Keep code minimal and readable.
+Create context, compile shaders, buffers, attributes, uniforms, draw loop (requestAnimationFrame).32: WebGL Implementation Details
+Update MVP only when inputs change;
+avoid per-vertex uniform uploads;
+batch draws by shader.
+Update uniforms only when inputs change;
+batch by shader/material.33: WebGL Implementation Details
+Interleaved buffers with stride/offset;
+normals require inverse-transpose handling when non-uniform scales exist.
+Interleave attributes;
+set stride/offset;
+compute normalMatrix on CPU when needed.34: WebGL Implementation Details
+glMatrix is small and fast;
+or write tiny utilities.
+Use out parameters to avoid GC in render loop.
+glMatrix is small;
+avoid per-frame allocations;
+prefer out-params.35: WebGL Implementation Details
+Use highp for positions in vertex shader if available;
+mediump may suffice in fragments for Week 3.
+Use highp in vertex shader for positions;
+mediump often OK in fragments.36: WebGL Implementation Details
+Print matrices;
+verify axes;
+draw an axis triad mesh for orientation sanity.
+Print matrices;
+ verify determinants and expected values;
+ render axis triad for orientation sanity check37: WebGL Implementation Details
+Bind sliders to translate/rotate/scale;
+display matrices live to reinforce algebra.
+Sliders for T,R,S;
+live matrix display;
+lock aspect ratio and fovy to see effects.38: Linear Algebra Essentials
+The determinant det(M) measures signed volume scaling and orientation flip.
+ A negative determinant corresponds to a reflection, which would mirror the pier orientation relative to the shoreline.
+ Compute det for sample scales and shears to quantify area distortion.
+ 
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten far.
+
+det(M) gives signed volume/area scale.
+ Example: S=diag(2,1,1) ⇒ det=2;
+ x-areas double;
+ reflection if det<0.38: Linear Algebra Essentials
+The determinant det(M) measures signed volume scaling and orientation flip.
+ A negative determinant corresponds to a reflection, which would mirror the pier orientation relative to the shoreline.
+ Compute det for sample scales and shears to quantify area distortion.
+ 
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten far.
+
+det(M) gives signed volume/area scale.
+ Example: S=diag(2,1,1) ⇒ det=2;
+ x-areas double;
+ reflection if det<0.39: Linear Algebra Essentials
+Eigenvectors indicate invariant directions;
+along an eigenvector the mapping is just scaling.
+If a shear keeps the horizon fixed while slanting verticals, the horizon direction is an approximate eigenvector.
+We use this for intuition in artistic rectification.
+M v = λ v.
+Directions preserved up to scaling.
+Shear may leave horizon direction near-invariant.
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten far.
+
+40: Linear Algebra Essentials
+A shear keeps one axis fixed while sliding along another.
+Shear explains oblique projections when combined with orthographic projection.
+We show a 2×2 shear applied to a rectangle and connect to how a pier might appear slanted in a technical drawing.
+2D shear: Sx(k)=[[1,k],[0,1]], maps (x,y)→(x+ky,y).
+ Oblique projection ≈ shear + orthographic.
+ 
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten far.41: Linear Algebra Essentials
+Composition M = T R S is powerful because it reduces repeated per-vertex work.
+ Once a single MVP matrix is prepared, each vertex multiplication is uniform.
+ We analyze order sensitivity with numeric 2D examples to build muscle memory.
+One MVP: M = P·V·M.
+ Reduces per-vertex work.
+ Verify order with a known triad geometry.
+ 
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten far.42: Linear Algebra Essentials
+For common transforms: T^{-1}(dx)=T(-dx), R^{-1}(θ)=R(-θ), S^{-1}(sx)=S(1/sx).
+ We show how to invert a composed transform using (ABC)^{-1}=C^{-1}B^{-1}A^{-1} and verify numerically.
+ 
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten far.
+
+T^{-1}(d)=T(−d);
+ R^{-1}(θ)=R(−θ);
+ S^{-1}=diag(1/sx,1/sy,1/sz);
+ (ABC)^{-1}=C^{-1}B^{-1}A^{-1}.43: Linear Algebra Essentials
+If S = diag(2,1,1), then a face normal (0,0,1) transformed by S without correction will tilt and shrink incorrectly.
+Using the inverse-transpose fixes that.
+We compute the corrected normal and normalize to unit length.
+If S non-uniform: recompute normals via inverse-transpose and renormalize per-vertex/per-fragment.
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,44: Linear Algebra Essentials
+Avoid extreme near/far ratios;
+prefer n≈1.0, f small.
+Monitor cond(M) to limit numeric blow‑ups.
+Large disparities in scale factors make M ill-conditioned, amplifying floating-point errors.
+ In WebGL, prefer normalization steps and avoid extreme near/far plane ratios to maintain depth precision.
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten far.
+
+45: Perspective Transformations
+Define eye, image plane, and rays;
+derive x' = f x/z, y' = f y/z;
+link horizon to skyline in the painting.
+x' = f x/z, y' = f y/z.
+Horizon at z→∞.
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten far.
+
+46: Perspective Transformations
+All world lines with direction d share a vanishing point;
+verify with pier edges.
+Direction d maps to VP on horizon;
+estimate by intersecting extended image lines.
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten 47: Perspective Transformations
+Construct standard perspective projection matrix mapping frustum to canonical cube;
+discuss w-divide.
+Standard OpenGL-style P with terms A=(f+n)/(n−f), B=2fn/(n−f);
+w' = −z_eye.
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten48: Perspective Transformations
+Show z_ndc = A + B / z_eye and compute a table to build intuition about z-buffer precision.
+Nonlinear z causes precision near the camera;
+pick near as large as possible.
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];49: Perspective Transformations
+Cross-ratio is preserved by projective transforms;
+numeric example along a pier edge.
+Cross‑ratio (A,B;C,D) invariant under projective transforms;
+useful for calibration.
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten50: Perspective Transformations
+Assume water is planar;
+map between views using 3×3 homography estimated from point correspondences.
+Estimate H from 4+ correspondences;
+rectifies planar patches like the pier surface.
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighte51: Perspective Transformations
+Parallel as f→∞;
+lines converge less and image approaches orthographic.
+As f→∞, perspective → orthographic;
+lines appear less convergent.
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten52: Perspective Transformations
+Use glMatrix mat4.perspective with radians, aspect, near, far;
+send as uniform.
+Code: mat4.perspective(P, fovyRad, aspect, n, f);
+gl.uniformMatrix4fv(uProj,false,P);
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];53: Perspective Transformations
+Students measure slopes and verify the vanishing point;
+sanity check for calibration.
+Measure slopes and confirm lines meet at VP;
+quick correctness test.
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten54: Extra Example: Depth Values
+Compute z_ndc for z=5,10,20 when near=0.5, far=50;
+derive depth buffer values in [0,1] by (z_ndc*0.5+0.5).
+// Perspective (WebGL)
+function perspective(fovy, aspect, near, far){ const f = 1/Math.tan(0.5*fovy), nf = 1/(near - far); return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0];
+}
+Depth is non-linear in distance (proportional to 1/z), so keep near as large as possible and tighten far.55: Debugging a Black Screen in WebGL
+Debugging a Black Screen in WebGL
+State: set clear color; enable depth test; gl.viewport(0,0,canvas.width,canvas.height);
+Shaders: check compile/link logs with getShaderInfoLog/getProgramInfoLog.
+Inputs: correct attribute pointers; buffers bound; uniforms set.
+MVP: start with identity M,V and a simple orthographic P; then switch to perspective.
+Geometry in frustum: verify near/far and FOV (cf. Demo B/C).
+// Minimal error logging
+function checkShader(gl, sh){
+  if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS))
+    console.error(gl.getShaderInfoLog(sh));
+}
+function checkProgram(gl, pr){
+  if(!gl.getProgramParameter(pr, gl.LINK_STATUS))
+    console.error(gl.getProgramInfoLog(pr));
+}
+56: Sanity Checks — Matrices & Coordinates
+Sanity Checks: Matrices & Coordinates
+Log M, V, P, and MVP = P·V·M to inspect numeric stability.
+Test a known point (pier origin): ensure it transforms to clip space with |x|,|y| ≤ w.
+For rotations: columns of R should be unit length and mutually orthogonal; det ≈ +1.
+function logMat4(M){
+  console.table([ M.slice(0,4), M.slice(4,8), M.slice(8,12), M.slice(12,16) ]);
+}
+function transformPoint(M, v){ // vec3 -> vec4
+  const [x,y,z]=v;
+  return [
+    M[0]*x+M[4]*y+M[8]*z+M[12],
+    M[1]*x+M[5]*y+M[9]*z+M[13],
+    M[2]*x+M[6]*y+M[10]*z+M[14],
+    M[3]*x+M[7]*y+M[11]*z+M[15]
+  ];
+}
+Tip: If values blow up, check units (meters vs pixels), scale factors, and near/far range first.
+
+57: Normals and the Inverse-Transpose
+Correct normal: n' = normalize((M^{-1})^T · n).
+Example S=diag(2,1,1): naive S·n distorts;
+inverse-transpose fixes.
+To correctly transform a surface normal n under affine transform M, use n' proportional to (M^{-1})^T n.
+ This avoids artifacts under non-uniform scaling.
+ If the pier planks were scaled differently along axes, lighting would require this correction to keep shading coherent.
+// Normal matrix (3x3 inverse-transpose of model 3x3)
+function normalMatrix3x3(M){ const a=M[0],b=M[1],c=M[2], d=M[4],e=M[5],f=M[6], g=M[8],h=M[9],i=M[10]; const A=e*i-f*h, B=-(d*i-f*g), C=d*h-e*g; const D=-(b*i-c*h), E=a*i-c*g, F=-(a*h-b*g); const G=b*f-c*e, H=-(a*f-c*d), I=a*e-b*d; const det = a*A + b*B + c*C; const inv = [A/det,D/det,G/det, B/det,E/det,H/det, C/det,F/det,I/det]; return [inv[0],inv[3],inv[6], inv[1],inv[4],inv[7], inv[2],inv[5],inv[8]];}
+Use this for correct lighting under non-uniform scale.
+58: Exercise C — Field of View & Aspect
+Exercise C — FOV & Aspect (Demo C)
+Change fovy between 30°, 60°, 90°; note horizon and foreshortening effects.
+Vary aspect = width/height; predict horizontal FOV change before rendering.
+Tighten near/far to just fit the pier; observe depth stability.
+// Perspective update
+const P = perspective(fovy, aspect, near, far);
+gl.uniformMatrix4fv(uP, false, P);
+Tip: Larger FOV increases distortion near edges; keep near/far tight for depth precision.59: WebGL Demos
+Exercise D — Normal Matrix Toggle (Demo D)
+Apply non‑uniform scale S(2, 1, 0.5) to the model.
+Render with normal matrix OFF (use model 3×3); observe incorrect shading.
+Render with N = (M₃×₃)^{-T}; observe fixed lighting.
+// Toggle
+const N = normalMatrix3x3(M); // inverse‑transpose
+gl.uniformMatrix3fv(uN, false, N);
+Goal: Explain why inverse‑transpose is necessary under non‑uniform scale.
+
+60: Summary of Key Takeaways
+Affine transforms preserve straightness;
+homogeneous coordinates unify translation and perspective;
+projection matrices introduce foreshortening via the w-divide.
+Painting overlays served as empirical checks for vanishing points and frame orientation.
+Good matrix hygiene prevents most rendering bugs in WebGL.61: Recommended Videos (SIGGRAPH & WebGL)
+SIGGRAPH transformational geometry course;
+SIGGRAPH Asia projective geometry in graphics;
+WebGL Fundamentals matrices;
+Computerphile on homogeneous coordinates.
+Watch shortest first to cement intuition and keep the longer course for revision during project work.
+Links are posted on LMS.
+

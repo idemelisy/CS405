@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>De Casteljau's Algorithm</title>
+</head>
+<body onload="Demo();">
+    <h1>De Casteljau's Algorithm</h1>
+    <canvas style id="glCanvas" width="800" height="600"></canvas>
+    <div style="display: flex; align-items: center; justify-content: center;">
+        <label for="tSlider">t value: <span id="tValue">0.50</span></label>
+        <br>
+        <input type="range" id="tSlider" min="0" max="1" step="0.01" value="0.5">
+    </div>
+    <script src="casteljau.js"></script>
+</body>
+</html>

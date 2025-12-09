@@ -1,0 +1,68 @@
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+      <title>58: Exercise C — Field of View & Aspect</title>
+      <style>
+        :root{
+          --maxw: 1100px;
+          --pad: clamp(14px, 2.2vw, 28px);
+          --fs-body: clamp(18px, 1.9vw, 26px);
+          --fs-title: clamp(28px, 3.4vw, 46px);
+          --fs-h2: clamp(22px, 2.4vw, 34px);
+          --fs-code: clamp(16px, 1.8vw, 22px);
+          --gap: clamp(12px, 1.6vw, 22px);
+        }
+        html, body { height:100%; margin:0; background:#fff; color:#000; }
+        .page{ max-width: var(--maxw); width:min(100%, var(--maxw)); margin:0 auto; min-height:100svh;
+               border:1.5px solid #000; display:flex; flex-direction:column; }
+        .header{ padding: var(--pad); border-bottom:1.5px solid #000; }
+        .title{ font-size: var(--fs-title); font-weight:800; letter-spacing:0.2px; }
+        .content{ padding: var(--pad); display:flex; flex-direction:column; gap: var(--gap);
+                  font-size: var(--fs-body); line-height:1.55; }
+        h2{ font-size: var(--fs-h2); margin: 0 0 6px 0; }
+        ul, ol{ padding-left: 1.2em; margin: 0.2em 0; }
+        li{ margin: 0.15em 0; }
+        pre{ background:#fafafa; border:1.5px solid #000; padding: 14px 16px;
+             font-size: var(--fs-code); line-height:1.5; overflow:auto; margin: 0; }
+        code{ font-family: ui-monospace, Menlo, Consolas, monospace; }
+        .nav-prev, .nav-next{
+          position: fixed; bottom: clamp(10px, 2vh, 20px);
+          padding: clamp(8px,1vw,12px) clamp(10px,1.2vw,14px);
+          border:1.5px solid #000; background:#fff; color:#000; text-decoration:none; font-weight:700; z-index:9999; pointer-events:auto;
+        }
+        .nav-prev{ left: clamp(10px, 2vw, 24px); }
+        .nav-next{ right: clamp(10px, 2vw, 24px); }
+        .nav-center{
+          position: fixed; bottom: clamp(10px, 2vh, 20px); left: 50%; transform: translateX(-50%);
+          padding: clamp(8px,1vw,12px) clamp(12px,1.6vw,16px); border: 1.5px solid #000; background:#fff;
+          color:#000; font-weight:700; z-index: 9998; white-space:nowrap; pointer-events:auto;
+        }
+        .nav-center a{ color:#000; text-decoration:none; }
+        .nav-center a + a{ margin-left: 12px; }
+        .content::after{ content: ""; display:block; height: clamp(60px, 8vh, 100px); }
+      </style>
+    </head>
+    <body>
+      <div class="page">
+        <div class="header"><div class="title">58: Exercise C — Field of View & Aspect</div></div>
+        <div class="content">
+          <h2>Exercise C — FOV & Aspect (Demo C)</h2>
+          <ol>
+            <li>Change <code>fovy</code> between 30°, 60°, 90°; note horizon and foreshortening effects.</li>
+            <li>Vary <code>aspect = width/height</code>; predict horizontal FOV change before rendering.</li>
+            <li>Tighten <code>near</code>/<code>far</code> to just fit the pier; observe depth stability.</li>
+          </ol>
+          <pre><code>// Perspective update
+const P = perspective(fovy, aspect, near, far);
+gl.uniformMatrix4fv(uP, false, P);</code></pre>
+          <p><em>Tip:</em> Larger FOV increases distortion near edges; keep near/far tight for depth precision.</p>
+        </div>
+      </div>
+      
+      <a class="nav-prev" href="slide57.html">Prev</a>
+      <a class="nav-next" href="slide59.html">Next</a>
+    <div class="nav-center"><a href="../index.html">Home</a> · <a href="../demos/index.html">Demos</a></div>
+</body>
+    </html>

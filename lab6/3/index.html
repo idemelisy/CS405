@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Textures and curves</title>
+    <style>
+        .controls {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #stats {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .tess-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 200px;
+            color: #666;
+        }
+    </style>
+</head>
+<body onload="Demo();">
+    <canvas id="canvas" width="600" height="600"></canvas>
+    <div class="controls">
+        <label for="sweep">Sweep angle:</label>
+        <input id="sweep" type="range" min="10" max="360" value="360">
+        <span id="sweepValue">360°</span>
+    </div>
+    <div class="controls">
+        <label for="tessellation">Tessellation:</label>
+        <input id="tessellation" type="range" min="1" max="3" value="2" step="1">
+        <div class="tess-labels">
+            <span>Low</span>
+            <span>Medium</span>
+            <span>High</span>
+        </div>
+    </div>
+    <div class="controls">
+        <label for="wireframe">Show wireframe:</label>
+        <input id="wireframe" type="checkbox">
+    </div>
+    <div class="controls">
+        <label for="texInput">Texture image:</label>
+        <input id="texInput" type="file" accept="image/*">
+    </div>
+    
+    <div id="stats">Tessellation: Medium | Vertices: 0 | Triangles: 0</div>
+    
+    <script>
+        //note: this is just to display the sweep angle! 
+        document.getElementById('sweep').addEventListener('input', function() {
+            document.getElementById('sweepValue').textContent = this.value + '°';
+        });
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>
