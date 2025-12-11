@@ -48,6 +48,7 @@
     lightAzimuth: document.getElementById("lightAzimuth"),
     lightElevation: document.getElementById("lightElevation"),
     showHelpers: document.getElementById("showHelpers"),
+    useTexture: document.getElementById("useTexture"),
     resetCamera: document.getElementById("resetCamera"),
     compareDivider: document.getElementById("compareDivider"),
     labelLeft: document.getElementById("labelLeft"),
@@ -165,6 +166,48 @@
     
     // Check if OBJ has normals
     const hasOwnNormals = normals.length > 0;
+    
+    // =========================================================================
+    // CENTER AND SCALE MODEL - Normalize to fit in view
+    // =========================================================================
+    if (positions.length > 0) {
+      // Calculate bounding box
+      let minX = Infinity, minY = Infinity, minZ = Infinity;
+      let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+      
+      for (const p of positions) {
+        minX = Math.min(minX, p[0]);
+        minY = Math.min(minY, p[1]);
+        minZ = Math.min(minZ, p[2]);
+        maxX = Math.max(maxX, p[0]);
+        maxY = Math.max(maxY, p[1]);
+        maxZ = Math.max(maxZ, p[2]);
+      }
+      
+      // Calculate center and size
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const centerZ = (minZ + maxZ) / 2;
+      const sizeX = maxX - minX;
+      const sizeY = maxY - minY;
+      const sizeZ = maxZ - minZ;
+      const maxSize = Math.max(sizeX, sizeY, sizeZ);
+      
+      // Scale to fit in ~3 units and center at origin
+      const targetSize = 3.0;
+      const scale = targetSize / maxSize;
+      
+      console.log(`Model bounds: (${minX.toFixed(2)}, ${minY.toFixed(2)}, ${minZ.toFixed(2)}) to (${maxX.toFixed(2)}, ${maxY.toFixed(2)}, ${maxZ.toFixed(2)})`);
+      console.log(`Model center: (${centerX.toFixed(2)}, ${centerY.toFixed(2)}, ${centerZ.toFixed(2)}), size: ${maxSize.toFixed(2)}`);
+      console.log(`Applying scale: ${scale.toFixed(4)} to fit target size ${targetSize}`);
+      
+      // Transform all positions: center then scale
+      for (let i = 0; i < positions.length; i++) {
+        positions[i][0] = (positions[i][0] - centerX) * scale;
+        positions[i][1] = (positions[i][1] - centerY) * scale;
+        positions[i][2] = (positions[i][2] - centerZ) * scale;
+      }
+    }
     
     // Collect ALL faces for smooth normal computation
     const allFaces = Object.values(materialGroups).flat();
@@ -426,33 +469,27 @@
 
     // Load model with multi-material support
     try {
-      const objText = await loadText("po/panda.obj");
+      const objText = await loadText("apple/apple2.obj");
       console.log("OBJ file loaded, size:", objText.length, "bytes");
       const objData = parseOBJ(objText);
       
-      // Load textures for each material
-      textures.body = await createTexture("po/textures/Po.png");
-      textures.eyes = await createTexture("po/textures/Po eye.png");
-      textures.specular = await createTexture("po/textures/Po Specular.png");
-      textures.normal = await createTexture("po/textures/Po Normals.png");
-      console.log("Loaded: diffuse (body, eyes), specular, normal maps");
+      // Load textures for apple model
+      textures.body = await createTexture("apple/apple2.jpg");
+      textures.specular = textures.body;  // Use diffuse as specular fallback
+      textures.normal = textures.body;    // Use diffuse as normal fallback
+      console.log("Loaded: apple diffuse texture");
       
       // Create VAO for each material group
       for (const [matName, vertices] of Object.entries(objData.materials)) {
         if (vertices.length === 0) continue;
         const vao = createVAO(vertices, gAttribs);
         
-        // Map material name to texture
-        let tex = textures.body;  // default
-        if (matName.toLowerCase().includes("eye")) {
-          tex = textures.eyes;
-        }
-        
+        // All materials use the same apple texture
         meshGroups.push({
           name: matName,
           vao: vao.vao,
           count: vao.count,
-          texture: tex
+          texture: textures.body
         });
         console.log(`  Material group "${matName}": ${vao.count} vertices`);
       }
@@ -460,10 +497,10 @@
       if (meshGroups.length === 0) {
         throw new Error("OBJ parsing returned no geometry");
       }
-      console.log("Po model loaded with", meshGroups.length, "material groups");
+      console.log("Apple model loaded with", meshGroups.length, "material groups");
     } catch (e) {
       console.warn("OBJ load failed, using cube", e);
-      textures.body = await createTexture("po/textures/Po.png");
+      textures.body = await createTexture("apple/apple2.jpg");
       textures.specular = textures.body;  // Use diffuse as fallback
       textures.normal = textures.body;    // Use diffuse as fallback
       const cube = createFallbackCube(gAttribs);
@@ -754,6 +791,11 @@
     const view = Mat4.create();
     const proj = Mat4.create();
     const model = Mat4.identity(Mat4.create());
+    
+    // Rotate apple stem to align with GREEN Y-axis (up)
+    Mat4.rotateX(model, model, Math.PI / 2);
+     Mat4.rotateY(model, model, Math.PI / 6);
+    
     camera.viewMatrix(view);
     const aspect = canvas.width / canvas.height;
     Mat4.perspective(proj, Math.PI / 4, aspect, 0.1, 100.0);
@@ -868,7 +910,7 @@
     const gUniforms = getUniformLocations(gbufferProgram, [
       "u_model", "u_view", "u_proj", "u_diffuse", "u_specularMap", "u_normalMap",
       "u_lightDir", "u_lightColor", "u_mode", "u_bands", "u_rim", "u_hatchScale", 
-      "u_hatch0", "u_hatch1", "u_hatch2", "u_hatch3"
+      "u_hatch0", "u_hatch1", "u_hatch2", "u_hatch3", "u_useTexture"
     ]);
     // Texture units: 0=diffuse, 1=specular, 2=normal, 3-6=hatch
     gl.uniform1i(gUniforms.u_diffuse, 0);
@@ -878,6 +920,7 @@
     gl.uniform1i(gUniforms.u_hatch1, 4);
     gl.uniform1i(gUniforms.u_hatch2, 5);
     gl.uniform1i(gUniforms.u_hatch3, 6);
+    gl.uniform1i(gUniforms.u_useTexture, ui.useTexture.checked ? 1 : 0);
     const viewMatrix = setMatrices(gUniforms);
     setLighting(gUniforms, viewMatrix);
     
