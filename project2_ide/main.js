@@ -47,6 +47,9 @@
     hatchScale: document.getElementById("hatchScale"),
     lightAzimuth: document.getElementById("lightAzimuth"),
     lightElevation: document.getElementById("lightElevation"),
+    cameraAzimuth: document.getElementById("cameraAzimuth"),
+    cameraElevation: document.getElementById("cameraElevation"),
+    cameraDistance: document.getElementById("cameraDistance"),
     showHelpers: document.getElementById("showHelpers"),
     useTexture: document.getElementById("useTexture"),
     resetCamera: document.getElementById("resetCamera"),
@@ -760,12 +763,39 @@
       lastX = e.clientX;
       lastY = e.clientY;
       camera.rotate(dx, dy);
+      // Update sliders to reflect manual camera rotation
+      updateCameraSliders();
     });
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       camera.dolly(Math.sign(e.deltaY));
+      updateCameraSliders();
     }, { passive: false });
-    ui.resetCamera.addEventListener("click", () => camera.reset());
+    ui.resetCamera.addEventListener("click", () => {
+      camera.reset();
+      updateCameraSliders();
+    });
+    
+    // Camera slider controls
+    function updateCameraSliders() {
+      ui.cameraAzimuth.value = (camera.azimuth * 180 / Math.PI + 360) % 360;
+      ui.cameraElevation.value = camera.elevation * 180 / Math.PI;
+      ui.cameraDistance.value = camera.distance;
+    }
+    
+    ui.cameraAzimuth.addEventListener("input", () => {
+      camera.azimuth = parseFloat(ui.cameraAzimuth.value) * Math.PI / 180;
+    });
+    
+    ui.cameraElevation.addEventListener("input", () => {
+      camera.elevation = parseFloat(ui.cameraElevation.value) * Math.PI / 180;
+    });
+    
+    ui.cameraDistance.addEventListener("input", () => {
+      camera.distance = parseFloat(ui.cameraDistance.value);
+    });
+    
+    updateCameraSliders();
     
     // Compare mode toggle
     function updateCompareUI() {

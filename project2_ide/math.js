@@ -45,8 +45,8 @@ class OrbitCamera {
     this.distance = 8;
     this.minDistance = 2;
     this.maxDistance = 30;
-    this.azimuth = 0.7;
-    this.elevation = 0.4;
+    this.azimuth = 40 * Math.PI / 180;  // 40 degrees
+    this.elevation = 23 * Math.PI / 180; // 23 degrees
     this.target = vec3.fromValues(0, 0, 0);
   }
 
@@ -61,8 +61,8 @@ class OrbitCamera {
 
   reset() {
     this.distance = 8;
-    this.azimuth = 0.7;
-    this.elevation = 0.4;
+    this.azimuth = 40 * Math.PI / 180;
+    this.elevation = 23 * Math.PI / 180;
   }
 
   getEye() {

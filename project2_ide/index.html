@@ -74,6 +74,22 @@
         <label for="lightElevation">Light Elevation (dikey açı)</label>
         <input id="lightElevation" type="range" min="-90" max="90" step="5" value="40" />
 
+        <h3 style="margin-top: 20px; margin-bottom: 8px; font-size: 14px; border-top: 1px solid #ddd; padding-top: 12px;">Camera Controls</h3>
+        
+        <div class="row">
+          <div>
+            <label for="cameraAzimuth">Azimuth (Yaw)</label>
+            <input id="cameraAzimuth" type="range" min="0" max="360" step="1" value="40" />
+          </div>
+          <div>
+            <label for="cameraElevation">Elevation (Pitch)</label>
+            <input id="cameraElevation" type="range" min="-89" max="89" step="1" value="23" />
+          </div>
+        </div>
+
+        <label for="cameraDistance">Distance (Zoom)</label>
+        <input id="cameraDistance" type="range" min="2" max="20" step="0.1" value="8" />
+
         <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px;">
           <input id="showHelpers" type="checkbox" checked />
           <span>Show Grid & Light Source</span>
