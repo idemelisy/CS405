@@ -1,4 +1,4 @@
-// Minimal math helpers built on glMatrix. Keep everything in one place for clarity.
+
 // Requires glMatrix (loaded in index.html).
 
 // Resolve mat4/vec3 from glMatrix (CDN) even if they live under glMatrix namespace.

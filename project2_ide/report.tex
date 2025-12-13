@@ -1,6 +1,6 @@
-\documentclass[12pt,a4paper]{article}
+\documentclass[10pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=0.6in]{geometry}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{graphicx}
@@ -11,10 +11,17 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{textcomp}
+\usepackage{multicol}
+
+% Compact spacing
+\setlength{\parskip}{0.3em}
+\setlength{\parindent}{0pt}
+\setlength{\abovecaptionskip}{5pt}
+\setlength{\belowcaptionskip}{0pt}
 
 % Code listing settings
 \lstset{
-    basicstyle=\ttfamily\small,
+    basicstyle=\ttfamily\footnotesize,
     keywordstyle=\color{blue},
     commentstyle=\color{gray},
     stringstyle=\color{red},
@@ -25,7 +32,7 @@
     numberstyle=\tiny\color{gray}
 }
 
-\title{CS 405 Project 2: Non-Photorealistic Rendering}
+\title{CS 405 Project 2}
 
 \author{İde Melis Yılmaz - 32400}
 \date{\today}
@@ -36,103 +43,36 @@
 
 \section{Introduction}
 
-In this Project i implemented 3 Non-Photorealistic Rendering (NPR) techniques , showed my work and resulting effect to the object in this report.The tecnhiques i used are:
-\begin{itemize}
-    \item \textbf{Toon/Cel Shading}: Cartoon-style rendering with discrete shading bands
-    \item \textbf{Edge Detection}: Silhouette extraction using screen-space derivatives
-    \item \textbf{Cross-Hatching}: Classical hand drawn pen-and-ink illustration technique
-\end{itemize}
-
-The implementation uses WebGL2's programmable pipeline to achieve these effects in real-time, with a custom G-buffer-based multi-pass architecture for advanced post-processing.
+In this Project i implemented 3 Non-Photorealistic Rendering (NPR) techniques: \textbf{Toon/Cel Shading} (cartoon-style with discrete shading bands), \textbf{Edge Detection} (silhouette extraction using screen-space derivatives), and \textbf{Cross-Hatching} (classical pen-and-ink illustration). The implementation uses WebGL2's programmable pipeline with a custom G-buffer-based multi-pass architecture for real-time rendering.
 
 \section{Artistic Inspiration: Albrecht Dürer's \textit{Melencolia I}}
 
-For the cross-hatching technique, i took inspiration from Albrecht Dürer's \textit{Melencolia I} engraving. Dürer used systematic layering of parallel and perpendicular lines to create depth and shading. His approach is perfect for algorithmic implementation because it follows clear rules:
+For the cross-hatching technique, i took inspiration from Albrecht Dürer's \textit{Melencolia I} engraving. Dürer used systematic layering: light areas use single-direction lines, mid-tones add perpendicular cross-hatching, and dark areas accumulate multiple diagonal layers with uniform spacing.
 
-\begin{itemize}
-    \item Light areas use single-direction lines
-    \item Mid-tones add perpendicular lines (cross-hatching)
-    \item Dark areas accumulate multiple diagonal layers
-    \item Line spacing stays uniform within each layer
-\end{itemize}
-
-\begin{figure}[!t]
+\begin{figure}[!htb]
     \centering
-    \includegraphics[width=\columnwidth]{images/durer_melencolia.jpg}
+    \includegraphics[width=0.45\columnwidth]{images/durer_melencolia.jpg}
     \caption{Albrecht Dürer, \textit{Melencolia I} (1514). Progressive cross-hatching for shading.}
     \label{fig:durer}
 \end{figure}
 
-My shader implementation uses these same principles. Different tone thresholds trigger successive hatching layers, creating gradual darkness just like Dürer's technique.
+I implemented this by adding more line layers as areas get darker. When the tone passes certain thresholds, new hatching directions are added, which creates that gradual darkening effect.
 
 \section{Comparative Analysis}
 
 \subsection{Visual Expressiveness}
 
-Each technique has its own artistic style and works best for different purposes:
+Each NPR technique creates a different artistic style. Phong shading serves as the photorealistic baseline for technical accuracy. Toon shading produces a cartoon/anime cel look that works great for games and animation. Edge detection creates technical illustration style that emphasizes form clarity. Cross-hatching mimics classical engraving techniques and is perfect for artistic prints.
 
-\begin{table}[!ht]
-\centering
-\caption{Expressive Characteristics of NPR Techniques}
-\label{tab:expressiveness}
-\begin{tabular}{|l|p{5cm}|p{4cm}|}
-\hline
-\textbf{Technique} & \textbf{Artistic Style} & \textbf{Best For} \\
-\hline
-Phong & Photorealistic baseline & Technical accuracy \\
-\hline
-Toon & Cartoon/anime cel & Games, animation \\
-\hline
-Edges & Technical illustration & Form clarity \\
-\hline
-Hatching & Classical engraving & Artistic prints \\
-\hline
-\end{tabular}
-\end{table}
+\subsection{Performance and Limitations}
 
-\subsection{Performance Analysis}
+All techniques run at 60+ FPS on my laptop GPU (NVIDIA GTX 1650) at 1920$\times$1080. I optimized edge detection with smart sampling (11 texture reads instead of 18), and cross-hatching is purely mathematical so it doesn't need any textures.
 
-I tested everything on my laptop GPU (NVIDIA GTX 1650). All techniques run smoothly above 30 FPS at 1920$\times$1080:
+\textbf{Limitations}: Toon band boundaries can be jagged; edges may flicker with camera movement due to RGBA8 precision; hatching uses fixed angles that distort on curved surfaces.
 
-\begin{table}[!ht]
-\centering
-\caption{Performance Characteristics}
-\label{tab:performance}
-\begin{tabular}{|l|c|c|c|}
-\hline
-\textbf{Technique} & \textbf{Ops} & \textbf{Tex} & \textbf{FPS} \\
-\hline
-Phong & Low & 1 & 120+ \\
-\hline
-Toon & Low & 1 & 110+ \\
-\hline
-Edges & Med & 11 & 80+ \\
-\hline
-Hatching & High & 1 & 60+ \\
-\hline
-\end{tabular}
-\end{table}
+\section{Technical Implementation}
 
-\textbf{Optimization tricks i used}:
-\begin{itemize}
-    \item For edge detection, i sample in a smart pattern to reduce texture reads (11 instead of 18)
-    \item Cross-hatching is purely mathematical, no texture memory needed
-    \item I use RGBA8 for the G-buffer instead of RGBA16F for better compatibility
-\end{itemize}
-
-\subsection{Limitations}
-
-Nothing's perfect, here's what could be improved:
-
-\begin{itemize}
-    \item \textbf{Toon}: Band boundaries can look jagged, specular is too simple
-    \item \textbf{Edges}: RGBA8 precision limits accuracy, edges can flicker when camera moves
-    \item \textbf{Hatching}: Lines use fixed angles, can look distorted on very curved surfaces
-\end{itemize}
-
-\section{Core Techniques I Used}
-
-I implemented 3 NPR techniques using a custom two-pass G-buffer pipeline. This architecture lets me do screen-space effects while keeping access to geometric information for proper shading.
+I implemented 3 NPR techniques using a custom two-pass G-buffer pipeline for screen-space effects with geometric information access.
 
 \subsection{Technique 1: Toon/Cel Shading}
 
@@ -140,6 +80,7 @@ I implemented 3 NPR techniques using a custom two-pass G-buffer pipeline. This a
 
 Toon shading is the simplest NPR technique i implemented. It takes normal continuous lighting and quantizes it into discrete bands to create that cartoon-like appearance. I implemented this in view space to keep the math simpler:
 
+{\footnotesize
 \begin{algorithm}[H]
 \caption{Toon Shading}
 \begin{algorithmic}[1]
@@ -157,51 +98,47 @@ Toon shading is the simplest NPR technique i implemented. It takes normal contin
 \State \hspace{2.5em} $+ \text{lightColor} \times \text{specular\_quantized} \times 0.25$
 \end{algorithmic}
 \end{algorithm}
+}
 
-\textbf{What makes it work}:
-\begin{itemize}
-    \item The floor function creates those sharp boundaries between light and shadow
-    \item Specular is either on or off (no gradients), giving that anime-style highlight
-    \item I added a user control to adjust band count from 2 to 8, so you can dial the cartoon effect up or down
-\end{itemize}
+The floor function creates sharp boundaries between light and shadow, while the step function makes specular either fully on or off (no gradients). I added a slider to control band count from 2 to 8 so the cartoon effect can be adjusted.
 
-\subsubsection{GLSL Implementation}
+\subsubsection{Implementation}
 
-\begin{lstlisting}[language=C, caption=Toon Shading Fragment Shader (excerpt)]
+\begin{lstlisting}[language=C, caption=Toon Shading (GLSL excerpt)]
 float bands = u_bands;
-float diffuse_intensity = max(dot(N, L), 0.0);
-float quantized = floor(diffuse_intensity * bands) / bands;
+float diffuse = max(dot(N, L), 0.0);
+float quantized = floor(diffuse * bands) / bands;
 
-// Binary specular highlight
 vec3 H = normalize(L + V);
 float spec = pow(max(dot(N, H), 0.0), 32.0);
 float specStep = step(0.5, spec);
 
-vec3 shaded = baseColor * (0.25 + quantized) 
+vec3 result = baseColor * (0.25 + quantized) 
             + lightColor * specStep * 0.25;
 \end{lstlisting}
 
-\begin{figure*}[!t]
+\begin{figure}[!htb]
     \centering
-    \begin{subfigure}{0.48\textwidth}
+    \begin{subfigure}{0.48\columnwidth}
         \includegraphics[width=\textwidth]{images/phong.png}
         \caption{Reference Phong}
     \end{subfigure}
     \hfill
-    \begin{subfigure}{0.48\textwidth}
+    \begin{subfigure}{0.48\columnwidth}
         \includegraphics[width=\textwidth]{images/toon.png}
         \caption{Toon Shading (4 bands)}
     \end{subfigure}
     \caption{Comparison: Continuous vs. Quantized Lighting}
     \label{fig:toon_comparison}
-\end{figure*}
+\end{figure}
 
 \subsection{Technique 2: Edge Detection}
 
 \subsubsection{Algorithm}
 
-For edge detection, i use Sobel operators on the G-buffer data. The cool thing is i detect edges from two different sources: depth discontinuities (where objects separate) and normal discontinuities (where surfaces crease). Combining both gives really robust edge lines:
+For edge detection, i use Sobel operators on the G-buffer data. I detect edges from two different sources: depth discontinuities (where objects separate) and normal discontinuities (where surfaces crease). Combining both gives robust edge lines:
 
+{\footnotesize
 \begin{algorithm}[H]
 \caption{Sobel-Based Edge Detection}
 \begin{algorithmic}[1]
@@ -233,6 +170,7 @@ For edge detection, i use Sobel operators on the G-buffer data. The cool thing i
 \EndFor
 \end{algorithmic}
 \end{algorithm}
+}
 
 \textbf{Sobel Kernels}:
 \begin{equation}
@@ -248,34 +186,30 @@ G_y = \begin{bmatrix}
 \end{bmatrix}
 \end{equation}
 
-\textbf{Why i use both depth and normals}:
-\begin{itemize}
-    \item \textbf{Depth edges}: Catch the outer silhouette of the object and where things overlap
-    \item \textbf{Normal edges}: Catch surface details like creases and sharp corners
-    \item Together they give me complete edge detection without needing any extra geometry processing
-\end{itemize}
+I used both depth and normals because depth edges catch the outer silhouette and overlapping objects, while normal edges detect surface details like creases and sharp corners. Combining them gives complete edge detection without extra geometry processing.
 
-\begin{figure*}[!t]
+\begin{figure}[!htb]
     \centering
-    \begin{subfigure}{0.48\textwidth}
+    \begin{subfigure}{0.48\columnwidth}
         \includegraphics[width=\textwidth]{images/edges_low.png}
         \caption{Low edge width (0.1)}
     \end{subfigure}
     \hfill
-    \begin{subfigure}{0.48\textwidth}
+    \begin{subfigure}{0.48\columnwidth}
         \includegraphics[width=\textwidth]{images/edges_high.png}
         \caption{High edge width (0.6)}
     \end{subfigure}
     \caption{Edge Detection: Adjustable silhouette width using rim threshold}
     \label{fig:edges}
-\end{figure*}
+\end{figure}
 
 \subsection{Technique 3: Cross-Hatching (My Extension)}
 
 \subsubsection{How I Extended It: Progressive Layer System}
 
-This is the technique where i put the most effort into extending beyond basic implementation. Instead of using pre-made textures like most hatching implementations do, i created a fully procedural system that generates lines mathematically. I designed it to follow Dürer's progressive layering approach where darker areas accumulate more and more line layers:
+This is the technique that includes my extension. Instead of using pre-made textures like most hatching implementations do, i created a fully procedural system that generates lines mathematically. I designed it to follow Dürer's progressive layering approach where darker areas accumulate more and more line layers:
 
+{\footnotesize
 \begin{algorithm}[H]
 \caption{Progressive Cross-Hatching}
 \begin{algorithmic}[1]
@@ -327,90 +261,57 @@ This is the technique where i put the most effort into extending beyond basic im
 \State \Return mix$(\text{color}_{\text{ink}}, \text{color}_{\text{lit}}, \text{hatch})$
 \end{algorithmic}
 \end{algorithm}
+}
 
-\subsubsection{Mathematical Formulation}
 
-The line generation uses the \texttt{fract} function to create periodic patterns:
 
-\begin{equation}
-\text{line}(\mathbf{p}, \theta, f, w) = \text{step}\left(w, \left|\text{fract}\left((\mathbf{R}_\theta \mathbf{p}) \cdot \mathbf{e}_y \times f\right) - 0.5\right|\right)
-\end{equation}
+Each line layer is generated by rotating the UV coordinates and using \texttt{fract(uv.y * frequency)} to create periodic patterns. The \texttt{step} function turns this into black/white lines. I rotate the UVs by 0\textdegree, 45\textdegree, 90\textdegree, and -45\textdegree for different directions. The \texttt{min} operation accumulates layers - wherever lines overlap, the result gets darker.
 
-where:
-\begin{itemize}
-    \item $\mathbf{p}$: 2D texture coordinate
-    \item $\theta$: rotation angle (0\textdegree, 45\textdegree, 90\textdegree, -45\textdegree)
-    \item $f$: frequency (lines per unit)
-    \item $w$: line width (0--1)
-    \item $\mathbf{R}_\theta$: 2D rotation matrix
-    \item $\mathbf{e}_y = (0, 1)$: y-axis unit vector
-\end{itemize}
+I implemented 6 layers (most tutorials only do 2-3) with tone thresholds at 0.12, 0.30, 0.45, 0.60, 0.75, and 0.88. This gives smoother darkening like Dürer's engravings. Everything is procedural so there's no texture memory cost.
 
-The \texttt{min} operation accumulates layers, darkening the result as more lines overlap.
 
-\textbf{My customizations}:
-\begin{itemize}
-    \item 6 distinct layers instead of the typical 2-3 in basic implementations
-    \item Carefully tuned tone thresholds (0.12, 0.30, 0.45, 0.60, 0.75, 0.88) to mimic Dürer's gradual darkening
-    \item Procedural generation instead of texture lookup (better quality, zero memory cost)
-    \item Different line frequencies for the final layers to create very dark areas
-\end{itemize}
-
-\subsubsection{GLSL Implementation}
-
-\begin{lstlisting}[language=C, caption=Cross-Hatching Fragment Shader (excerpt)]
+\begin{lstlisting}[language=C, caption=Cross-Hatching ]
 float tone = 1.0 - clamp(dot(N, L), 0.0, 1.0);
 vec2 uv = v_uv * u_hatchScale;
-float lineWidth = 0.5;
 
-// Generate hatching layers
-float h1 = step(lineWidth, fract(uv.y * 15.0));
-float h2 = step(lineWidth, fract(uv.x * 15.0));
+// Generate layers with rotation
+float h1 = step(0.5, fract(uv.y * 15.0));
+float h2 = step(0.5, fract(uv.x * 15.0));
+vec2 d1 = mat2(0.707,-0.707,0.707,0.707) * uv;
+float h3 = step(0.5, fract(d1.y * 15.0));
+vec2 d2 = mat2(0.707,0.707,-0.707,0.707) * uv;
+float h4 = step(0.5, fract(d2.y * 15.0));
 
-vec2 diag1 = mat2(0.707, -0.707, 0.707, 0.707) * uv;
-float h3 = step(lineWidth, fract(diag1.y * 15.0));
-
-vec2 diag2 = mat2(0.707, 0.707, -0.707, 0.707) * uv;
-float h4 = step(lineWidth, fract(diag2.y * 15.0));
-
-// Progressive accumulation
+// Accumulate based on tone
 float hatch = 1.0;
 if (tone > 0.12) hatch = h1;
 if (tone > 0.30) hatch = min(hatch, h2);
 if (tone > 0.45) hatch = min(hatch, h3);
 if (tone > 0.60) hatch = min(hatch, h4);
 
-// Mix ink color with lit surface
-vec3 litColor = baseColor * (0.3 + ndotl * 0.7);
-vec3 inkColor = baseColor * 0.15;
-vec3 result = mix(inkColor, litColor, hatch);
+vec3 lit = baseColor * (0.3 + ndotl * 0.7);
+vec3 ink = baseColor * 0.15;
+vec3 result = mix(ink, lit, hatch);
 \end{lstlisting}
 
-\begin{figure}[!t]
+\begin{figure}[!htb]
     \centering
-    \includegraphics[width=\columnwidth]{images/cross_hatch.png}
+    \includegraphics[width=0.45\columnwidth]{images/cross_hatch.png}
     \caption{Cross-Hatching: Progressive layer accumulation inspired by Dürer's technique}
     \label{fig:hatching}
 \end{figure}
 
 \section{Conclusion}
 
-This project taught me a lot about GPU programming and artistic rendering. I successfully implemented 3 distinct NPR techniques (requirement was 2) and everything runs in real-time at 60+ FPS on my laptop.
+This project taught me a lot about GPU programming and artistic rendering. I implemented 3 NPR techniques that all run at 60+ FPS on my GTX 1650.
 
-The most interesting part was extending the cross-hatching technique. Instead of using pre-made textures like traditional approaches, i created a fully procedural system with 6 progressive layers. This gives me:
+The most interesting part was the cross-hatching extension. Instead of using textures like most implementations, i made it fully procedural with 6 layers. This means zero memory cost, infinite resolution, and real-time parameter control.
 
-\begin{itemize}
-    \item Zero memory cost (no texture lookups)
-    \item Infinite resolution (works at any zoom level)
-    \item Real-time parameter control
-    \item Better quality than typical 2-3 layer implementations
-\end{itemize}
+The G-buffer pipeline made it easy to experiment with different effects. The two-pass setup gives me screen-space edge detection while keeping geometric data for proper shading.
 
-I also built a modular G-buffer pipeline that made it easy to experiment with different effects. The two-pass architecture lets me do screen-space edge detection while still having access to geometric information for proper NPR shading.
+The hardest part was tuning the tone thresholds (0.12, 0.30, 0.45, 0.60, 0.75, 0.88) for the cross-hatching. I wanted gradual darkening like Dürer's engravings and i found suitable thresholds with trying.
 
-The most challenging part was tuning the tone thresholds (0.12, 0.30, 0.45, 0.60, 0.75, 0.88) to get that gradual darkening effect like Dürer's engravings. It took a lot of trial and error but the result captures the feel of traditional cross-hatching while running in real-time.
 
-If i had more time, i'd love to add more NPR styles like watercolor or stippling using the same pipeline architecture. The system is designed to be extensible so adding new effects would be straightforward.
 
 
 % Bibliography (comment out if not using)
